@@ -2,6 +2,9 @@ let apiKey = '';
 let currentScope = 'none';
 let currentToken = '';
 let currentSection = 'image';
+// Feature flag: 是否启用“在线资产”相关功能。
+// 你不需要在线资产时，保持为 false 即可完全关闭这块逻辑。
+const ENABLE_ONLINE_ASSETS = false;
 const accountMap = new Map();
 const selectedTokens = new Set();
 const selectedLocal = {
@@ -20,6 +23,12 @@ const cacheListState = {
   video: { loaded: false, visible: false, items: [] }
 };
 
+// 媒体预览状态
+let mediaItems = [];
+let mediaIndex = -1;
+let mediaType = 'image';
+let mediaRotation = 0;
+
 async function init() {
   apiKey = await ensureApiKey();
   if (apiKey === null) return;
@@ -29,7 +38,12 @@ async function init() {
   setupFailureDialog();
   setupBatchControls();
   await loadStats();
-  autoLoadOnlineAssets();
+  if (ENABLE_ONLINE_ASSETS) {
+    autoLoadOnlineAssets();
+  } else if (ui.onlineAssetsTable) {
+    // 关闭在线资产时，直接隐藏在线资产表格区域
+    ui.onlineAssetsTable.classList.add('hidden');
+  }
   startLocalStatsRefresh();
   await showCacheSection('image');
 }
@@ -76,8 +90,13 @@ async function refreshLocalStats() {
 function setupCacheCards() {
   if (!ui.cacheCards) return;
   ui.cacheCards.forEach(card => {
+    const type = card.getAttribute('data-type');
+    if (!ENABLE_ONLINE_ASSETS && type === 'online') {
+      // 不需要在线资产功能时，直接把「在线资产」卡片隐藏掉
+      card.classList.add('hidden');
+      return;
+    }
     card.addEventListener('click', () => {
-      const type = card.getAttribute('data-type');
       if (type) toggleCacheList(type);
     });
   });
@@ -120,6 +139,13 @@ function cacheUI() {
   ui.failureList = document.getElementById('failure-list');
   ui.failureClose = document.getElementById('failure-close');
   ui.failureRetry = document.getElementById('failure-retry');
+  ui.mediaLightbox = document.getElementById('media-lightbox');
+  ui.mediaImage = document.getElementById('media-image');
+  ui.mediaVideo = document.getElementById('media-video');
+  ui.mediaTitle = document.getElementById('media-title');
+  ui.mediaMeta = document.getElementById('media-meta');
+  ui.mediaPrev = document.getElementById('media-prev');
+  ui.mediaNext = document.getElementById('media-next');
 }
 
 function escapeHtml(str) {
@@ -602,7 +628,7 @@ function updateBatchActionsVisibility() {
 function updateLoadButton() {
   const btn = ui.loadBtn;
   if (!btn) return;
-  if (currentSection === 'online') {
+  if (currentSection === 'online' && ENABLE_ONLINE_ASSETS) {
     btn.textContent = '加载';
     btn.title = '';
   } else {
@@ -614,7 +640,7 @@ function updateLoadButton() {
 function updateDeleteButton() {
   const btn = ui.deleteBtn;
   if (!btn) return;
-  if (currentSection === 'online') {
+  if (currentSection === 'online' && ENABLE_ONLINE_ASSETS) {
     btn.textContent = '清理';
     btn.title = '';
   } else {
@@ -630,14 +656,14 @@ function setActionButtonsState() {
   const disabled = isBatchLoading || isBatchDeleting || isLocalDeleting;
   const noSelection = getActiveSelectedSet().size === 0;
   if (loadBtn) {
-    if (currentSection === 'online') {
+    if (currentSection === 'online' && ENABLE_ONLINE_ASSETS) {
       loadBtn.disabled = disabled || noSelection;
     } else {
       loadBtn.disabled = disabled;
     }
   }
   if (deleteBtn) {
-    if (currentSection === 'online') {
+    if (currentSection === 'online' && ENABLE_ONLINE_ASSETS) {
       deleteBtn.disabled = disabled || noSelection;
     } else {
       deleteBtn.disabled = disabled || noSelection;
@@ -648,7 +674,7 @@ function setActionButtonsState() {
 function updateBatchProgress() {
   const container = ui.batchProgress;
   if (!container || !ui.batchProgressText) return;
-  if (currentSection !== 'online') {
+  if (currentSection !== 'online' || !ENABLE_ONLINE_ASSETS) {
     container.classList.add('hidden');
     if (ui.pauseActionBtn) ui.pauseActionBtn.classList.add('hidden');
     if (ui.stopActionBtn) ui.stopActionBtn.classList.add('hidden');
@@ -686,7 +712,7 @@ function setOnlineStatus(text, className) {
 }
 
 function getActiveSelectedSet() {
-  if (currentSection === 'online') return selectedTokens;
+  if (currentSection === 'online' && ENABLE_ONLINE_ASSETS) return selectedTokens;
   return selectedLocal[currentSection] || new Set();
 }
 
@@ -720,6 +746,11 @@ function formatSize(bytes) {
 }
 
 async function showCacheSection(type) {
+  // 完全关闭在线资产功能时，忽略对 online 区域的切换
+  if (type === 'online' && !ENABLE_ONLINE_ASSETS) {
+    // 保持在当前（本地）分区，避免误切换
+    return;
+  }
   ensureUI();
   currentSection = type;
   if (ui.cacheCards) {
@@ -770,7 +801,7 @@ async function toggleCacheList(type) {
 async function loadLocalCacheList(type) {
   const body = type === 'image' ? ui.localImageBody : ui.localVideoBody;
   if (!body) return;
-  body.innerHTML = `<tr><td colspan="5">加载中...</td></tr>`;
+  body.innerHTML = `<div class="text-xs text-[var(--accents-4)] py-6 text-center">加载中...</div>`;
   try {
     const params = new URLSearchParams({ type, page: '1', page_size: '1000' });
     const res = await fetch(`/api/v1/admin/cache/list?${params.toString()}`, {
@@ -791,7 +822,7 @@ async function loadLocalCacheList(type) {
     });
     renderLocalCacheList(type, items);
   } catch (e) {
-    body.innerHTML = `<tr><td colspan="5">加载失败</td></tr>`;
+    body.innerHTML = `<div class="text-xs text-[var(--accents-4)] py-6 text-center">加载失败</div>`;
   }
 }
 
@@ -799,46 +830,34 @@ function renderLocalCacheList(type, items) {
   const body = type === 'image' ? ui.localImageBody : ui.localVideoBody;
   if (!body) return;
   if (!items || items.length === 0) {
-    body.innerHTML = `<tr><td colspan="5">暂无文件</td></tr>`;
+    body.innerHTML = `<div class="text-xs text-[var(--accents-4)] py-6 text-center">暂无文件</div>`;
     syncLocalSelectAllState(type);
     return;
   }
   const selected = selectedLocal[type];
   body.innerHTML = items.map(item => {
     const timeText = formatTime(item.mtime_ms);
-    const preview = item.preview_url ? `<img src="${item.preview_url}" alt="" class="cache-preview">` : '';
     const checked = selected.has(item.name) ? 'checked' : '';
     const rowClass = selected.has(item.name) ? 'row-selected' : '';
+    const thumb = type === 'image'
+      ? `<img src="${item.view_url}" alt="" />`
+      : `<video src="${item.view_url}" muted playsinline></video>`;
     return `
-      <tr class="${rowClass}">
-        <td class="text-center">
+      <div class="cache-grid-item ${rowClass}" data-name="${item.name}" onclick="viewLocalFile('${type}', '${item.name}')">
+        <div class="cache-grid-checkbox" onclick="event.stopPropagation();">
           <input type="checkbox" class="checkbox" data-name="${item.name}" ${checked} onchange="toggleLocalSelect('${type}', '${item.name}', this)">
-        </td>
-        <td class="text-left">
-          <div class="flex items-center gap-2">
-            ${preview}
-            <span class="font-mono text-xs text-gray-500">${item.name}</span>
+        </div>
+        <div class="cache-grid-thumb">
+          ${thumb}
+        </div>
+        <div class="cache-grid-meta">
+          <div class="cache-grid-name">${item.name}</div>
+          <div class="cache-grid-sub">
+            <span>${formatSize(item.size_bytes)}</span>
+            <span>${timeText}</span>
           </div>
-        </td>
-        <td class="text-left">${formatSize(item.size_bytes)}</td>
-        <td class="text-left text-xs text-gray-500">${timeText}</td>
-        <td class="text-center">
-          <div class="cache-list-actions">
-            <button class="cache-icon-button" onclick="viewLocalFile('${type}', '${item.name}')" title="查看">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-            </button>
-            <button class="cache-icon-button" onclick="deleteLocalFile('${type}', '${item.name}')" title="删除">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              </svg>
-            </button>
-          </div>
-        </td>
-      </tr>
+        </div>
+      </div>
     `;
   }).join('');
   syncLocalSelectAllState(type);
@@ -846,9 +865,110 @@ function renderLocalCacheList(type, items) {
 }
 
 function viewLocalFile(type, name) {
-  const safeName = encodeURIComponent(name);
-  const url = type === 'image' ? `/v1/files/image/${safeName}` : `/v1/files/video/${safeName}`;
-  window.open(url, '_blank');
+  const state = cacheListState[type];
+  if (!state || !Array.isArray(state.items) || state.items.length === 0) return;
+  const index = state.items.findIndex(item => item.name === name);
+  if (index === -1) return;
+  openMediaLightbox(type, state.items, index);
+}
+
+function openMediaLightbox(type, items, index) {
+  ensureUI();
+  mediaType = type;
+  mediaItems = items || [];
+  mediaIndex = index;
+  if (!ui.mediaLightbox || mediaIndex < 0 || mediaIndex >= mediaItems.length) return;
+
+  const current = mediaItems[mediaIndex];
+  const url = current.view_url;
+  const title = current.name || '';
+  const sizeText = formatSize(current.size_bytes);
+  const timeText = formatTime(current.mtime_ms);
+  mediaRotation = 0;
+
+  if (ui.mediaTitle) ui.mediaTitle.textContent = title || '预览';
+  if (ui.mediaMeta) ui.mediaMeta.textContent = [sizeText, timeText].filter(Boolean).join(' · ');
+
+  if (ui.mediaImage && ui.mediaVideo) {
+    if (type === 'image') {
+      ui.mediaVideo.classList.add('hidden');
+      ui.mediaVideo.pause?.();
+      ui.mediaImage.src = url;
+      ui.mediaImage.classList.remove('hidden');
+    } else {
+      ui.mediaImage.classList.add('hidden');
+      ui.mediaImage.src = '';
+      ui.mediaVideo.src = url;
+      ui.mediaVideo.classList.remove('hidden');
+    }
+  }
+
+  if (ui.mediaPrev) ui.mediaPrev.disabled = mediaIndex <= 0;
+  if (ui.mediaNext) ui.mediaNext.disabled = mediaIndex >= mediaItems.length - 1;
+
+  ui.mediaLightbox.classList.remove('hidden');
+  ui.mediaLightbox.classList.add('is-open');
+
+  // 键盘左右键切换、Esc 关闭
+  window.addEventListener('keydown', handleMediaKeydown);
+}
+
+function closeMediaLightbox() {
+  if (!ui.mediaLightbox) return;
+  ui.mediaLightbox.classList.remove('is-open');
+  setTimeout(() => {
+    ui.mediaLightbox.classList.add('hidden');
+  }, 180);
+  if (ui.mediaVideo) {
+    ui.mediaVideo.pause?.();
+  }
+  window.removeEventListener('keydown', handleMediaKeydown);
+}
+
+function prevMediaItem() {
+  if (mediaIndex <= 0) return;
+  openMediaLightbox(mediaType, mediaItems, mediaIndex - 1);
+}
+
+function nextMediaItem() {
+  if (mediaIndex >= mediaItems.length - 1) return;
+  openMediaLightbox(mediaType, mediaItems, mediaIndex + 1);
+}
+
+function rotateMedia() {
+  if (!ui.mediaImage && !ui.mediaVideo) return;
+  mediaRotation = (mediaRotation + 90) % 360;
+  const target = mediaType === 'image' ? ui.mediaImage : ui.mediaVideo;
+  if (!target) return;
+  target.style.transform = mediaRotation ? `rotate(${mediaRotation}deg)` : '';
+}
+
+function downloadMedia() {
+  const current = mediaItems[mediaIndex];
+  if (!current) return;
+  const url = current.view_url;
+  const name = current.name || (mediaType === 'image' ? 'image' : 'video');
+  if (!url) return;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function handleMediaKeydown(e) {
+  if (!ui.mediaLightbox || !ui.mediaLightbox.classList.contains('is-open')) return;
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    prevMediaItem();
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    nextMediaItem();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeMediaLightbox();
+  }
 }
 
 async function deleteLocalFile(type, name) {

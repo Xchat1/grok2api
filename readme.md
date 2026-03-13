@@ -90,6 +90,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 - `http://<host>:8000/admin/keys`：API Key 管理（统计/筛选/新增/编辑/删除）
 - `http://<host>:8000/admin/datacenter`：数据中心（常用指标 + 日志查看）
 - `http://<host>:8000/admin/config`：配置管理（含自动注册所需配置）
+- `http://<host>:8000/admin/config#available-models`：可用模型（与配置管理同页，锚点定位；列表与官方对齐，支持一键复制模型 ID）
 - `http://<host>:8000/admin/cache`：缓存管理（本地缓存 + 在线资产）
 
 ### 手机端适配（全站）
@@ -177,7 +178,13 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 - Basic 账号：80 次 / 20h
 - Super 账号：无账号，作者未测试
 
-### 可用模型
+### 可用模型（对齐官方 + 可用模型模块）
+
+- **对齐官方可用模型**：模型 ID 与 xAI 官方文档 [Models](https://docs.x.ai/developers/models) 保持一致，仅支持源头原始 ID（无别名）。后端模型表在 Python（`app/services/grok/model.py`）与 Cloudflare Workers（`src/grok/models.ts`）间通过脚本 `scripts/check_model_catalog_sync.py` 校验一致，CI 会自动跑该脚本。
+- **可用模型模块**：管理后台提供「可用模型」入口与展示：
+  - 顶部导航 **可用模型** 链接至 **配置管理** 页的 `#available-models` 锚点；
+  - 配置管理页底部有 **可用模型** 卡片，列出当前支持的所有模型 ID 与说明，并支持一键复制模型 ID；
+  - 列表与上述模型表（model.py / models.ts）保持同步，便于开发与调试时查阅。
 
 仅支持以下源头原始 ID（无别名）：
 

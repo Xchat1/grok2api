@@ -154,7 +154,13 @@ Required config keys (Admin -> Config, `register.*`):
 - Basic account: 80 requests / 20h
 - Super account: not tested by the author
 
-### Models
+### Models (official alignment + Available Models module)
+
+- **Official model alignment**: Model IDs match [xAI Models](https://docs.x.ai/developers/models). Only upstream raw IDs are supported (no aliases). The catalog is kept in sync between Python (`app/services/grok/model.py`) and Cloudflare Workers (`src/grok/models.ts`) via `scripts/check_model_catalog_sync.py`; CI runs this script.
+- **Available Models module**: The admin UI exposes an **Available Models** section:
+  - Top nav **Available Models** links to **Config** page anchor `#available-models`;
+  - The Config page shows an **Available Models** card listing all supported model IDs with descriptions and a one-click copy for each ID;
+  - The list is kept in sync with the backend catalog (model.py / models.ts).
 
 Only the following upstream model IDs are supported (no aliases):
 

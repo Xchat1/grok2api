@@ -296,13 +296,20 @@ class VideoStreamProcessor(BaseProcessor):
             self.show_think = think
     
     def _build_video_html(self, video_url: str, thumbnail_url: str = "") -> str:
-        """构建视频 HTML 标签"""
+        """
+        同时输出 Markdown 标记和 HTML，兼容不同客户端：
+        - Markdown: [video](url) 便于 Cherry Studio 等解析为视频结果
+        - HTML:  保持对现有前端的兼容
+        """
+        md_part = f"[video]({video_url})"
         if get_config("grok.video_poster_preview", False):
-            return _build_video_poster_preview(video_url, thumbnail_url)
-        poster_attr = f' poster="{thumbnail_url}"' if thumbnail_url else ""
-        return f'''<video id="video" controls="" preload="none"{poster_attr}>
+            html_part = _build_video_poster_preview(video_url, thumbnail_url)
+        else:
+            poster_attr = f' poster="{thumbnail_url}"' if thumbnail_url else ""
+            html_part = f'''<video id="video" controls="" preload="none"{poster_attr}>
   <source id="mp4" src="{video_url}" type="video/mp4">
 </video>'''
+        return md_part + "\n\n" + html_part
     
     async def process(self, response: AsyncIterable[bytes]) -> AsyncGenerator[str, None]:
         """处理视频流式响应"""
@@ -373,12 +380,20 @@ class VideoCollectProcessor(BaseProcessor):
         self.video_format = get_config("app.video_format", "url")
     
     def _build_video_html(self, video_url: str, thumbnail_url: str = "") -> str:
+        """
+        同时输出 Markdown 标记和 HTML，兼容不同客户端：
+        - Markdown: [video](url) 便于 Cherry Studio 等解析为视频结果
+        - HTML:  保持对现有前端的兼容
+        """
+        md_part = f"[video]({video_url})"
         if get_config("grok.video_poster_preview", False):
-            return _build_video_poster_preview(video_url, thumbnail_url)
-        poster_attr = f' poster="{thumbnail_url}"' if thumbnail_url else ""
-        return f'''<video id="video" controls="" preload="none"{poster_attr}>
+            html_part = _build_video_poster_preview(video_url, thumbnail_url)
+        else:
+            poster_attr = f' poster="{thumbnail_url}"' if thumbnail_url else ""
+            html_part = f'''<video id="video" controls="" preload="none"{poster_attr}>
   <source id="mp4" src="{video_url}" type="video/mp4">
 </video>'''
+        return md_part + "\n\n" + html_part
     
     async def process(self, response: AsyncIterable[bytes]) -> dict[str, Any]:
         """处理并收集视频响应"""

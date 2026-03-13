@@ -71,83 +71,79 @@
           </div>
         </div>
 
-        <div class="stat-card cache-card" data-type="online">
-          <div class="flex items-start justify-between">
-            <div>
-              <div class="cache-stat-label">在线资产</div>
-              <div class="cache-stat-value">
-                <span id="online-count">0</span>
-                <span class="text-xs text-[var(--accents-4)] ml-1">个文件</span>
-              </div>
-              <div id="online-status" class="text-xs text-green-600 mt-1">连接正常</div>
-              <div id="online-last-clear" class="text-xs text-[var(--accents-4)] mt-1"></div>
-            </div>
-          </div>
-        </div>
+        <!-- 在线资产功能已关闭，如需恢复可还原此卡片 -->
       </div>
 
       <div id="local-cache-lists" class="space-y-4 hidden">
         <div id="local-image-list" class="cache-list hidden">
-          <div class="rounded-lg overflow-hidden bg-white overflow-x-auto">
-            <table class="geist-table min-w-[600px]">
-              <thead>
-                <tr>
-                  <th class="w-10 text-center">
-                    <input id="local-image-select-all" type="checkbox" class="checkbox" onchange="toggleLocalSelectAll('image', this)">
-                  </th>
-                  <th class="w-108 text-left">文件</th>
-                  <th class="w-32 text-left">大小</th>
-                  <th class="w-48 text-left">时间</th>
-                  <th class="w-24 text-center">操作</th>
-                </tr>
-              </thead>
-              <tbody id="local-image-body"></tbody>
-            </table>
+          <div class="rounded-lg overflow-hidden bg-white p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-sm text-[var(--accents-4)]">本地图片（点击预览，大图左右切换）</div>
+              <div class="text-xs text-[var(--accents-4)]">
+                <input id="local-image-select-all" type="checkbox" class="checkbox align-middle mr-1"
+                  onchange="toggleLocalSelectAll('image', this)">
+                <span>全选</span>
+              </div>
+            </div>
+            <div id="local-image-body" class="cache-grid"></div>
           </div>
         </div>
         <div id="local-video-list" class="cache-list hidden">
-          <div class="rounded-lg overflow-hidden bg-white overflow-x-auto">
-            <table class="geist-table min-w-[600px]">
-              <thead>
-                <tr>
-                  <th class="w-10 text-center">
-                    <input id="local-video-select-all" type="checkbox" class="checkbox" onchange="toggleLocalSelectAll('video', this)">
-                  </th>
-                  <th class="w-108 text-left">文件</th>
-                  <th class="w-32 text-left">大小</th>
-                  <th class="w-48 text-left">时间</th>
-                  <th class="w-24 text-center">操作</th>
-                </tr>
-              </thead>
-              <tbody id="local-video-body"></tbody>
-            </table>
+          <div class="rounded-lg overflow-hidden bg-white p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-sm text-[var(--accents-4)]">本地视频（点击预览，支持播放与左右切换）</div>
+              <div class="text-xs text-[var(--accents-4)]">
+                <input id="local-video-select-all" type="checkbox" class="checkbox align-middle mr-1"
+                  onchange="toggleLocalSelectAll('video', this)">
+                <span>全选</span>
+              </div>
+            </div>
+            <div id="local-video-body" class="cache-grid"></div>
           </div>
         </div>
       </div>
 
-      <div id="online-assets-table" class="rounded-lg overflow-hidden bg-white mb-4 overflow-x-auto">
-        <table class="geist-table min-w-[800px]">
-          <thead>
-            <tr>
-              <th class="w-10 text-center">
-                <input id="select-all" type="checkbox" class="checkbox" onchange="toggleSelectAll(this)">
-              </th>
-              <th class="w-48 text-left">Token</th>
-              <th class="w-32 text-center">类型</th>
-              <th class="w-32 text-center">资产数</th>
-              <th class="w-42 text-left">上次清空时间</th>
-              <th class="w-24 text-center">操作</th>
-            </tr>
-          </thead>
-          <tbody id="account-table-body"></tbody>
-        </table>
-        <div id="account-empty" class="hidden text-center py-12 text-[var(--accents-4)]">暂无可用账号</div>
-      </div>
+      <!-- 在线资产表格已移除，如需恢复可还原此结构 -->
 
     </div>
     </div>
   </main>
   <div id="app-footer"></div>
+
+  <!-- 媒体预览弹窗（图片 / 视频共用） -->
+  <div id="media-lightbox" class="modal-overlay hidden">
+    <div class="modal-content max-w-3xl">
+      <div class="modal-header">
+        <div class="flex flex-col gap-1">
+          <div class="modal-title" id="media-title">预览</div>
+          <div class="text-xs text-[var(--accents-4)]" id="media-meta"></div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" class="media-tool-btn" title="旋转 90°" onclick="rotateMedia()">
+            ⤾
+          </button>
+          <button type="button" class="media-tool-btn" title="下载" onclick="downloadMedia()">
+            ⬇
+          </button>
+          <button type="button" class="modal-close" onclick="closeMediaLightbox()">
+            ✕
+          </button>
+        </div>
+      </div>
+      <div class="media-preview-body">
+        <button type="button" class="media-nav-btn prev" id="media-prev" onclick="prevMediaItem()">
+          ‹
+        </button>
+        <div class="media-preview-inner">
+          <img id="media-image" class="media-image hidden" alt="">
+          <video id="media-video" class="media-video hidden" controls playsinline></video>
+        </div>
+        <button type="button" class="media-nav-btn next" id="media-next" onclick="nextMediaItem()">
+          ›
+        </button>
+      </div>
+    </div>
+  </div>
 
   <div id="batch-actions"
     class="fixed bottom-8 left-1/2 -translate-x-1/2 z-20 bg-white border border-[var(--border)] rounded-full px-3 py-2 flex items-center shadow-lg gap-3 cursor-move select-none active:cursor-grabbing whitespace-nowrap">
