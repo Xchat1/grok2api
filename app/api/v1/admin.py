@@ -1298,3 +1298,19 @@ async def tail_log_api(file: str | None = None, lines: int = 500):
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/admin/logs/clear", dependencies=[Depends(verify_admin_or_api_key)])
+async def clear_logs_and_metrics_api():
+    """清空本地常用指标与后台日志记录（request_logs + request_stats）。"""
+    from app.services.request_logger import request_logger
+    from app.services.request_stats import request_stats
+
+    try:
+        await request_logger.init()
+        await request_logger.clear_logs()
+        await request_stats.init()
+        await request_stats.reset()
+        return {"success": True, "message": "常用指标与后台日志已清空"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

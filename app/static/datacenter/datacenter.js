@@ -228,6 +228,25 @@ function setupEvents() {
     });
   }
 
+  const btnClear = $('btn-clear-logs-metrics');
+  if (btnClear) {
+    btnClear.addEventListener('click', async () => {
+      if (!confirm('确定要清空本地常用指标与后台日志记录吗？请求统计与请求日志将全部清空。')) return;
+      try {
+        const res = await fetch('/api/v1/admin/logs/clear', { method: 'POST', headers: buildAuthHeaders(apiKey) });
+        if (res.status === 401) { logout(); return; }
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message || '已清空');
+          await refreshMetricsOnce(false);
+        } else throw new Error(data.detail || data.message || '清空失败');
+      } catch (e) {
+        showToast('清空失败: ' + (e.message || e), 'error');
+      }
+    });
+  }
+
   const logRefresh = $('log-refresh');
   if (logRefresh) {
     logRefresh.addEventListener('click', async () => refreshLogsOnce(false));
