@@ -1,4 +1,4 @@
-﻿let apiKey = '';
+let apiKey = '';
 let currentConfig = {};
 const NUMERIC_FIELDS = new Set([
   'timeout',
@@ -86,6 +86,26 @@ const LOCALE_MAP = {
     "max_runtime_minutes": { title: "最长运行时间(分钟)", desc: "超过指定分钟数后自动停止注册。0 表示不限制。"}
   }
 };
+
+// 静态可用模型（与 ModelService / MODEL_CONFIG 对齐）
+// 仅支持源头原始 ID，与 model.py / models.ts 一致
+const STATIC_MODELS = [
+  { id: "grok-3", desc: "Grok 3" },
+  { id: "grok-3-mini", desc: "Grok 3 Mini" },
+  { id: "grok-4.20-multi-agent-beta-0309", desc: "Grok 4.20 Multi-Agent Beta 0309" },
+  { id: "grok-4.20-beta-0309-reasoning", desc: "Grok 4.20 Beta 0309 Reasoning" },
+  { id: "grok-4.20-beta-0309-non-reasoning", desc: "Grok 4.20 Beta 0309 Non-Reasoning" },
+  { id: "grok-code-fast-1", desc: "Grok Code Fast 1" },
+  { id: "grok-4-fast-reasoning", desc: "Grok 4 Fast Reasoning" },
+  { id: "grok-4-fast-non-reasoning", desc: "Grok 4 Fast Non-Reasoning" },
+  { id: "grok-4-1-fast-reasoning", desc: "Grok 4.1 Fast Reasoning" },
+  { id: "grok-4-1-fast-non-reasoningeu-west-1", desc: "Grok 4.1 Fast Non-Reasoning EU West 1" },
+  { id: "grok-4-1-fast-non-reasoningus-east-4", desc: "Grok 4.1 Fast Non-Reasoning US East 4" },
+  { id: "grok-4-0709", desc: "Grok 4 0709" },
+  { id: "grok-imagine-image-pro", desc: "Grok Imagine Image Pro" },
+  { id: "grok-imagine-image", desc: "Grok Imagine Image" },
+  { id: "grok-imagine-video", desc: "Grok Imagine Video" }
+];
 
 function getText(section, key) {
   if (LOCALE_MAP[section] && LOCALE_MAP[section][key]) {
@@ -315,6 +335,81 @@ function renderConfig(data) {
       container.appendChild(card);
     }
   });
+
+  // 追加“可用模型”卡片
+  renderStaticModelsSection(container);
+}
+
+function renderStaticModelsSection(container) {
+  const existing = document.getElementById('available-models');
+  if (existing) return;
+
+  const card = document.createElement('div');
+  card.className = 'config-section';
+  card.id = 'available-models';
+
+  const header = document.createElement('div');
+  header.className = 'flex items-center justify-between mb-4';
+  header.innerHTML = `
+    <div>
+      <div class="config-section-title flex items-center gap-2 flex-wrap">
+        可用模型
+        <a href="https://docs.x.ai/developers/models" target="_blank" rel="noopener" class="text-sm font-normal text-[var(--accents-5)] hover:text-[var(--accents-3)] underline">官方文档 ↗</a>
+      </div>
+      <p class="config-field-desc mt-1">当前 Grok2API 中可直接使用的模型 ID（写死列表，与后端模型表保持同步）。点击右侧按钮可复制模型 ID。</p>
+    </div>
+  `;
+  card.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'space-y-1 text-sm';
+
+  STATIC_MODELS.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between gap-2 py-1 px-2 rounded hover:bg-[var(--accents-1)]';
+
+    const left = document.createElement('div');
+    left.className = 'flex flex-col';
+
+    const idEl = document.createElement('code');
+    idEl.className = 'text-xs font-mono';
+    idEl.textContent = m.id;
+
+    left.appendChild(idEl);
+    if (m.desc) {
+      const descEl = document.createElement('div');
+      descEl.className = 'text-[11px] text-[var(--accents-4)]';
+      descEl.textContent = m.desc;
+      left.appendChild(descEl);
+    }
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'geist-button-outline text-[11px] px-2 py-1';
+    btn.textContent = '复制';
+    btn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(m.id);
+        showToast(`已复制模型 ID：${m.id}`, 'success');
+      } catch (e) {
+        showToast('复制失败', 'error');
+      }
+    };
+
+    row.appendChild(left);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+
+  card.appendChild(list);
+  container.appendChild(card);
+
+  // 如果带了 hash，滚动到该区域
+  if (location.hash === '#available-models') {
+    setTimeout(() => {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
 }
 
 async function saveConfig() {
@@ -378,6 +473,17 @@ async function saveConfig() {
     } else {
       btn.disabled = false;
     }
+  }
+}
+
+// 保留函数名供其他地方调用（目前未使用弹窗）
+async function showAvailableModels() {
+  const container = document.getElementById('config-container');
+  if (!container) return;
+  renderStaticModelsSection(container);
+  const card = document.getElementById('available-models');
+  if (card) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 

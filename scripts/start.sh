@@ -2,7 +2,7 @@
 set -eu
 
 HOST="${SERVER_HOST:-0.0.0.0}"
-PORT="${SERVER_PORT:-8000}"
+PORT="${SERVER_PORT:-8788}"
 WORKERS="${SERVER_WORKERS:-1}"
 
 LOG_LEVEL_LOWER="$(printf "%s" "${LOG_LEVEL:-INFO}" | tr '[:upper:]' '[:lower:]')"

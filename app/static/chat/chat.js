@@ -1,4 +1,4 @@
-﻿const STORAGE_KEY = 'grok2api_user_api_key';
+const STORAGE_KEY = 'grok2api_user_api_key';
 
 let currentTab = 'chat';
 let models = [];
@@ -820,8 +820,8 @@ async function refreshModels() {
 
     const filtered = models.filter((m) => {
       const id = String(m.id || '');
-      if (currentTab === 'image') return id === 'grok-imagine-1.0';
-      if (currentTab === 'video') return id === 'grok-imagine-1.0-video';
+      if (currentTab === 'image') return id === 'grok-imagine-image' || id === 'grok-imagine-image-pro';
+      if (currentTab === 'video') return id === 'grok-imagine-video';
       return !/imagine/i.test(id) || id === 'grok-4-heavy';
     });
 
@@ -837,11 +837,11 @@ async function refreshModels() {
     });
 
     if (currentTab === 'image') {
-      sel.value = filteredIds.includes('grok-imagine-1.0') ? 'grok-imagine-1.0' : (filteredIds[0] || '');
+      sel.value = filteredIds.includes('grok-imagine-image') ? 'grok-imagine-image' : (filteredIds[0] || '');
       return;
     }
     if (currentTab === 'video') {
-      sel.value = filteredIds.includes('grok-imagine-1.0-video') ? 'grok-imagine-1.0-video' : (filteredIds[0] || '');
+      sel.value = filteredIds.includes('grok-imagine-video') ? 'grok-imagine-video' : (filteredIds[0] || '');
       return;
     }
     if (previousValue && filteredIds.includes(previousValue)) {
@@ -1204,7 +1204,7 @@ async function generateImage() {
 
   stopImageContinuous();
 
-  const model = String(q('model-select').value || 'grok-imagine-1.0').trim();
+  const model = String(q('model-select').value || 'grok-imagine-image').trim();
   const n = Math.max(1, Math.min(10, Math.floor(Number(q('image-n').value || 1) || 1)));
   const stream = Boolean(q('stream-toggle').checked);
   const useStream = stream && n <= 2;
@@ -1259,7 +1259,7 @@ async function generateVideo() {
   const prompt = String(q('video-prompt').value || '').trim();
   if (!prompt) return showToast('请输入 prompt', 'warning');
 
-  const model = String(q('model-select').value || 'grok-imagine-1.0-video').trim();
+  const model = String(q('model-select').value || 'grok-imagine-video').trim();
   const stream = Boolean(q('stream-toggle').checked);
   const headers = { ...buildApiHeaders(), 'Content-Type': 'application/json' };
   if (!headers.Authorization) return showToast('请先填写 API Key', 'warning');

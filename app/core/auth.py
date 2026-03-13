@@ -121,6 +121,19 @@ async def verify_api_key(
     )
 
 
+async def verify_admin_or_api_key(
+    auth: Optional[HTTPAuthorizationCredentials] = Security(security),
+) -> Optional[str]:
+    """
+    后台接口认证：接受「后台密码」或「API Key」（配置或已创建的 Key）。
+    登录后前端用登录返回的 token 作为 Bearer，此处用 app.app_key 校验，从而在创建首个 Key 后仍能保持登录。
+    """
+    app_key = str(get_config("app.app_key", "") or "").strip()
+    if auth and app_key and auth.credentials == app_key:
+        return auth.credentials
+    return await verify_api_key(auth)
+
+
 async def verify_app_key(
     auth: Optional[HTTPAuthorizationCredentials] = Security(security),
 ) -> Optional[str]:
@@ -155,5 +168,5 @@ async def verify_app_key(
     return auth.credentials
 
 
-__all__ = ["verify_api_key", "verify_app_key"]
+__all__ = ["verify_api_key", "verify_admin_or_api_key", "verify_app_key"]
 

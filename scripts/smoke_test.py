@@ -68,8 +68,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Grok2API smoke test (local/docker/cloudflare).")
     parser.add_argument(
         "--base-url",
-        default=os.getenv("GROK2API_BASE_URL", "http://127.0.0.1:8000"),
-        help="Base URL, e.g. http://127.0.0.1:8000",
+        default=os.getenv("GROK2API_BASE_URL", "http://127.0.0.1:8788"),
+        help="Base URL, e.g. http://127.0.0.1:8788",
     )
     parser.add_argument(
         "--api-key",
@@ -134,7 +134,7 @@ def main() -> int:
             stream_url = f"{base_url}/v1/images/generations"
             payload = {
                 "prompt": "smoke test image",
-                "model": "grok-imagine-1.0",
+                "model": "grok-imagine-image",
                 "n": 1,
                 "stream": True,
                 "response_format": "b64_json",

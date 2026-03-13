@@ -6,7 +6,7 @@ import uuid
 # 1. 在管理后台 [Key 管理] 页面创建一个新 Key
 # 2. 将新生成的 sk-... 填入下方
 API_KEY = "YOUR_NEW_API_KEY" 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8788"
 # ==========================================
 
 def test_chat_completion():

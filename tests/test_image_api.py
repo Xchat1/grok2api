@@ -43,14 +43,14 @@ def test_image_generation_request_concurrency_bounds():
         ImageGenerationRequest(prompt="demo", concurrency=4)
 
 
-def test_edit_model_mapping_exists():
-    model = ModelService.get("grok-imagine-1.0-edit")
+def test_edit_model_exists():
+    model = ModelService.get("grok-imagine-image")
     assert model is not None
-    assert model.grok_model == "imagine-image-edit"
+    assert model.grok_model == "grok-imagine-image"
     assert model.is_image is True
 
 
-def test_validate_edit_request_rejects_legacy_model():
+def test_validate_edit_request_rejects_unsupported_model():
     req = ImageEditRequest(prompt="edit", model="grok-imagine-1.0", n=1, stream=False)
     file = UploadFile(filename="a.png", file=BytesIO(b"x"))
 
@@ -60,7 +60,7 @@ def test_validate_edit_request_rejects_legacy_model():
     assert exc.value.code == "model_not_supported"
 
 
-def test_validate_edit_request_accepts_new_model():
-    req = ImageEditRequest(prompt="edit", model="grok-imagine-1.0-edit", n=1, stream=False)
+def test_validate_edit_request_accepts_grok_imagine_image():
+    req = ImageEditRequest(prompt="edit", model="grok-imagine-image", n=1, stream=False)
     file = UploadFile(filename="a.png", file=BytesIO(b"x"))
     validate_edit_request(req, [file])

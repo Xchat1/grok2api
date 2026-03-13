@@ -179,23 +179,25 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 
 ### 可用模型
 
-| 模型名                     | 计次 | 可用账号    | 对话功能 | 图像功能 | 视频功能 |
-| :------------------------- | :--: | :---------- | :------: | :------: | :------: |
-| `grok-3`                 |  1  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-3-mini`            |  1  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-3-thinking`        |  1  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-4`                 |  1  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-4-mini`            |  1  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-4-thinking`        |  1  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-4-heavy`           |  4  | Super       |   支持   |   支持   |    -    |
-| `grok-4.1-mini`          |  1  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-4.1-fast`          |  1  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-4.1-expert`        |  4  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-4.1-thinking`      |  4  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-4.20-beta`         |  1  | Basic/Super |   支持   |   支持   |    -    |
-| `grok-imagine-1.0`       |  -  | Basic/Super |    -    |   支持   |    -    |
-| `grok-imagine-1.0-edit`  |  -  | Basic/Super |    -    |   支持   |    -    |
-| `grok-imagine-1.0-video` |  -  | Basic/Super |    -    |    -    |   支持   |
+仅支持以下源头原始 ID（无别名）：
+
+| 模型名 | 说明 |
+| :----- | :--- |
+| `grok-3` | Grok 3 |
+| `grok-3-mini` | Grok 3 Mini |
+| `grok-4.20-multi-agent-beta-0309` | 4.20 Multi-Agent Beta |
+| `grok-4.20-beta-0309-reasoning` | 4.20 Reasoning |
+| `grok-4.20-beta-0309-non-reasoning` | 4.20 Non-Reasoning |
+| `grok-code-fast-1` | Code Fast 1 |
+| `grok-4-fast-reasoning` | Grok 4 Fast Reasoning |
+| `grok-4-fast-non-reasoning` | Grok 4 Fast Non-Reasoning |
+| `grok-4-1-fast-reasoning` | Grok 4.1 Fast Reasoning |
+| `grok-4-1-fast-non-reasoningeu-west-1` | 4.1 Fast EU West 1 |
+| `grok-4-1-fast-non-reasoningus-east-4` | 4.1 Fast US East 4 |
+| `grok-4-0709` | Grok 4 0709 |
+| `grok-imagine-image-pro` | 图像 Pro |
+| `grok-imagine-image` | 图像 |
+| `grok-imagine-video` | 视频 |
 
 <br>
 
@@ -210,7 +212,7 @@ curl http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
-    "model": "grok-4",
+    "model": "grok-4.20-beta-0309-reasoning",
     "messages": [{"role":"user","content":"你好"}]
   }'
 ```
@@ -247,7 +249,7 @@ curl http://localhost:8000/v1/images/generations \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
-    "model": "grok-imagine-1.0",
+    "model": "grok-imagine-image",
     "prompt": "一只在太空漂浮的猫",
     "n": 1
   }'
@@ -260,7 +262,7 @@ curl http://localhost:8000/v1/images/generations \
 
 | 字段 | 类型 | 说明 | 可用参数 |
 | :--- | :--- | :--- | :--- |
-| `model` | string | 图像模型名 | `grok-imagine-1.0` |
+| `model` | string | 图像模型名 | `grok-imagine-image`、`grok-imagine-image-pro` |
 | `prompt` | string | 图像描述提示词 | - |
 | `n` | integer | 生成数量 | `1` - `10`（流式仅 `1` 或 `2`） |
 | `stream` | boolean | 是否开启流式输出 | `true`, `false` |
@@ -314,7 +316,7 @@ curl http://localhost:8000/v1/images/method \
 ```bash
 curl http://localhost:8000/v1/images/edits \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
-  -F "model=grok-imagine-1.0-edit" \
+  -F "model=grok-imagine-image" \
   -F "prompt=给这只猫加一副太阳镜" \
   -F "image=@./cat.png" \
   -F "n=1" \
@@ -328,7 +330,7 @@ curl http://localhost:8000/v1/images/edits \
 
 | 字段 | 类型 | 说明 | 可用参数 |
 | :--- | :--- | :--- | :--- |
-| `model` | string | 图像模型名 | `grok-imagine-1.0-edit` |
+| `model` | string | 图像模型名 | `grok-imagine-image` |
 | `prompt` | string | 编辑提示词 | - |
 | `image` | file[] | 待编辑图片（最多 16 张） | `png`, `jpg`, `jpeg`, `webp` |
 | `n` | integer | 生成数量 | `1` - `10`（流式仅 `1` 或 `2`） |

@@ -156,23 +156,25 @@ Required config keys (Admin -> Config, `register.*`):
 
 ### Models
 
-| Model | Cost | Account | Chat | Image | Video |
-| :--- | :---: | :--- | :---: | :---: | :---: |
-| `grok-3` | 1 | Basic/Super | Yes | Yes | - |
-| `grok-3-mini` | 1 | Basic/Super | Yes | Yes | - |
-| `grok-3-thinking` | 1 | Basic/Super | Yes | Yes | - |
-| `grok-4` | 1 | Basic/Super | Yes | Yes | - |
-| `grok-4-mini` | 1 | Basic/Super | Yes | Yes | - |
-| `grok-4-thinking` | 1 | Basic/Super | Yes | Yes | - |
-| `grok-4-heavy` | 4 | Super | Yes | Yes | - |
-| `grok-4.1-mini` | 1 | Basic/Super | Yes | Yes | - |
-| `grok-4.1-fast` | 1 | Basic/Super | Yes | Yes | - |
-| `grok-4.1-expert` | 4 | Basic/Super | Yes | Yes | - |
-| `grok-4.1-thinking` | 4 | Basic/Super | Yes | Yes | - |
-| `grok-4.20-beta` | 1 | Basic/Super | Yes | Yes | - |
-| `grok-imagine-1.0` | - | Basic/Super | - | Yes | - |
-| `grok-imagine-1.0-edit` | - | Basic/Super | - | Yes | - |
-| `grok-imagine-1.0-video` | - | Basic/Super | - | - | Yes |
+Only the following upstream model IDs are supported (no aliases):
+
+| Model ID | Description |
+| :------- | :---------- |
+| `grok-3` | Grok 3 |
+| `grok-3-mini` | Grok 3 Mini |
+| `grok-4.20-multi-agent-beta-0309` | 4.20 Multi-Agent Beta |
+| `grok-4.20-beta-0309-reasoning` | 4.20 Reasoning |
+| `grok-4.20-beta-0309-non-reasoning` | 4.20 Non-Reasoning |
+| `grok-code-fast-1` | Code Fast 1 |
+| `grok-4-fast-reasoning` | Grok 4 Fast Reasoning |
+| `grok-4-fast-non-reasoning` | Grok 4 Fast Non-Reasoning |
+| `grok-4-1-fast-reasoning` | Grok 4.1 Fast Reasoning |
+| `grok-4-1-fast-non-reasoningeu-west-1` | 4.1 Fast EU West 1 |
+| `grok-4-1-fast-non-reasoningus-east-4` | 4.1 Fast US East 4 |
+| `grok-4-0709` | Grok 4 0709 |
+| `grok-imagine-image-pro` | Imagine Image Pro |
+| `grok-imagine-image` | Imagine Image |
+| `grok-imagine-video` | Imagine Video |
 
 <br>
 
@@ -186,7 +188,7 @@ curl http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
-    "model": "grok-4",
+    "model": "grok-4.20-beta-0309-reasoning",
     "messages": [{"role":"user","content":"Hello"}]
   }'
 ```
@@ -222,7 +224,7 @@ curl http://localhost:8000/v1/images/generations \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
-    "model": "grok-imagine-1.0",
+    "model": "grok-imagine-image",
     "prompt": "A cat floating in space",
     "n": 1
   }'
@@ -235,7 +237,7 @@ curl http://localhost:8000/v1/images/generations \
 
 | Field | Type | Description | Allowed values |
 | :--- | :--- | :--- | :--- |
-| `model` | string | Image model ID | `grok-imagine-1.0` |
+| `model` | string | Image model ID | `grok-imagine-image`, `grok-imagine-image-pro` |
 | `prompt` | string | Prompt | - |
 | `n` | integer | Number of images | `1` - `10` (streaming: `1` or `2` only) |
 | `size` | string | Image size / aspect ratio (experimental method) | `1024x1024`, `1280x720`, `720x1280`, `1792x1024`, `1024x1792`, `16:9`, `9:16`, `1:1`, `2:3`, `3:2` |
@@ -277,7 +279,7 @@ Response example:
 ```bash
 curl http://localhost:8000/v1/images/edits \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
-  -F "model=grok-imagine-1.0-edit" \
+  -F "model=grok-imagine-image" \
   -F "prompt=Add sunglasses to this cat" \
   -F "image=@./cat.png" \
   -F "n=1" \
@@ -291,7 +293,7 @@ curl http://localhost:8000/v1/images/edits \
 
 | Field | Type | Description | Allowed values |
 | :--- | :--- | :--- | :--- |
-| `model` | string | Image model ID | `grok-imagine-1.0-edit` |
+| `model` | string | Image model ID | `grok-imagine-image` |
 | `prompt` | string | Edit prompt | - |
 | `image` | file[] | Source image(s), up to 16 files | `png`, `jpg`, `jpeg`, `webp` |
 | `n` | integer | Number of images | `1` - `10` (streaming: `1` or `2` only) |

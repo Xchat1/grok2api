@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 
 <head>
@@ -10,46 +10,53 @@
   <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-sans/style.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-mono/style.css" rel="stylesheet">
   <link href="/static/common/common.css?v=3" rel="stylesheet">
-  <link href="/static/chat/chat.css?v=4" rel="stylesheet">
+  <link href="/static/chat/chat.css?v=5" rel="stylesheet">
   <link href="/static/common/toast.css" rel="stylesheet">
   <script>
     window.__CHAT_ADMIN__ = true;
   </script>
 </head>
 
-<body class="min-h-screen flex flex-col" style="background-color: var(--bg);">
+<body class="min-h-screen flex flex-col page-admin-chat" style="background-color: var(--bg);">
   <div id="toast-container" class="toast-container"></div>
   <div id="app-header"></div>
 
-  <main class="flex-1 container mx-auto max-w-5xl px-6 py-6 fade-in space-y-4">
-    <div class="card">
-      <div class="card-title">连接配置</div>
-      <div class="grid grid-cols-12 gap-3 items-end">
-        <div class="col-span-12 md:col-span-5">
+  <main class="flex-1 admin-chat-main container mx-auto max-w-6xl px-4 sm:px-6 py-5 sm:py-6 fade-in">
+    <header class="admin-chat-page-header">
+      <h1 class="admin-chat-title">在线聊天</h1>
+      <p class="admin-chat-desc">后台调试：聊天、生图、生成视频，API Key 可从配置管理自动填充。</p>
+    </header>
+
+    <section class="admin-chat-section card card-config">
+      <h2 class="card-title">连接配置</h2>
+      <div class="config-grid">
+        <div class="config-field config-api-key">
           <label class="field-label">API Key（Bearer）</label>
           <input id="api-key-input" type="password" class="geist-input font-mono" placeholder="优先从后台配置自动填充，可手动覆盖" />
-          <div class="text-xs text-[var(--accents-5)] mt-1">后台入口会尝试读取“配置管理 -> API 密钥”自动填充。</div>
+          <span class="field-hint">后台入口会尝试读取「配置管理 → API 密钥」自动填充。</span>
         </div>
-        <div class="col-span-12 md:col-span-4">
+        <div class="config-field config-model">
           <label class="field-label">模型</label>
           <select id="model-select" class="geist-input h-[34px]"></select>
         </div>
-        <div class="col-span-6 md:col-span-1 flex items-center gap-2">
-          <input id="stream-toggle" type="checkbox" class="checkbox" checked>
-          <label for="stream-toggle" class="text-sm">Stream</label>
+        <div class="config-field config-stream">
+          <label class="checkbox-wrap">
+            <input id="stream-toggle" type="checkbox" class="checkbox" checked>
+            <span class="checkbox-label">Stream</span>
+          </label>
         </div>
-        <div class="col-span-12 md:col-span-2 flex flex-wrap justify-end gap-2">
+        <div class="config-actions">
           <button class="geist-button-outline text-xs px-3" onclick="saveApiKey()">保存</button>
           <button class="geist-button-danger text-xs px-3" onclick="clearApiKey()">清除</button>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="card">
-      <div class="tabs">
-        <button id="tab-chat" class="tab active" onclick="switchTab('chat')">聊天</button>
-        <button id="tab-image" class="tab" onclick="switchTab('image')">生图</button>
-        <button id="tab-video" class="tab" onclick="switchTab('video')">生成视频</button>
+    <section class="admin-chat-section card card-workspace">
+      <div class="tabs" role="tablist">
+        <button id="tab-chat" class="tab active" role="tab" onclick="switchTab('chat')" aria-selected="true">聊天</button>
+        <button id="tab-image" class="tab" role="tab" onclick="switchTab('image')" aria-selected="false">生图</button>
+        <button id="tab-video" class="tab" role="tab" onclick="switchTab('video')" aria-selected="false">生成视频</button>
       </div>
 
       <div id="panel-chat" class="panel">
@@ -186,7 +193,7 @@
 
         <div id="video-results" class="mt-4"></div>
       </div>
-    </div>
+    </section>
   </main>
 
   <div id="app-footer"></div>

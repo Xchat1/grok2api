@@ -23,7 +23,7 @@ from app.services.quota import enforce_daily_quota
 
 router = APIRouter(tags=["Videos"])
 
-VIDEO_MODEL_ID = "grok-imagine-1.0-video"
+VIDEO_MODEL_ID = "grok-imagine-video"
 SIZE_TO_ASPECT = {
     "1280x720": "16:9",
     "720x1280": "9:16",

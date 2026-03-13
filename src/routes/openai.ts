@@ -495,8 +495,8 @@ function getTokenSuffix(token: string): string {
   return token.length >= 6 ? token.slice(-6) : token;
 }
 
-const IMAGE_GENERATION_MODEL_ID = "grok-imagine-1.0";
-const IMAGE_EDIT_MODEL_ID = "grok-imagine-1.0-edit";
+const IMAGE_GENERATION_MODEL_ID = "grok-imagine-image";
+const IMAGE_EDIT_MODEL_ID = "grok-imagine-image";
 
 function parseImageCount(input: unknown): number {
   const raw = Number(input ?? 1);

@@ -47,7 +47,7 @@ class ImageGenerationRequest(BaseModel):
     """Image generation request - OpenAI compatible."""
 
     prompt: str = Field(..., description="Image prompt")
-    model: Optional[str] = Field("grok-imagine-1.0", description="Model name")
+    model: Optional[str] = Field("grok-imagine-image", description="Model name")
     n: Optional[int] = Field(1, ge=1, le=10, description="Image count (1-10)")
     size: Optional[str] = Field("1024x1024", description="Image size / ratio")
     quality: Optional[str] = Field("standard", description="Reserved")
@@ -61,7 +61,7 @@ class ImageEditRequest(BaseModel):
     """Image edit request - OpenAI compatible."""
 
     prompt: str = Field(..., description="Edit prompt")
-    model: Optional[str] = Field("grok-imagine-1.0-edit", description="Model name")
+    model: Optional[str] = Field("grok-imagine-image", description="Model name (image edit)")
     image: Optional[Union[str, List[str]]] = Field(None, description="Input image(s)")
     n: Optional[int] = Field(1, ge=1, le=10, description="Image count (1-10)")
     size: Optional[str] = Field("1024x1024", description="Reserved")
@@ -73,10 +73,10 @@ class ImageEditRequest(BaseModel):
 
 def validate_generation_request(request: ImageGenerationRequest):
     """Validate image generation request parameters."""
-    model_id = request.model or "grok-imagine-1.0"
-    if model_id != "grok-imagine-1.0":
+    model_id = request.model or "grok-imagine-image"
+    if model_id not in ("grok-imagine-image", "grok-imagine-image-pro"):
         raise ValidationException(
-            message="The model `grok-imagine-1.0` is required for image generation.",
+            message="Image generation requires model `grok-imagine-image` or `grok-imagine-image-pro`.",
             param="model",
             code="model_not_supported",
         )
@@ -133,10 +133,10 @@ def validate_generation_request(request: ImageGenerationRequest):
 
 def validate_edit_request(request: ImageEditRequest, images: List[UploadFile]):
     """Validate image edit request parameters."""
-    model_id = request.model or "grok-imagine-1.0-edit"
-    if model_id != "grok-imagine-1.0-edit":
+    model_id = request.model or "grok-imagine-image"
+    if model_id != "grok-imagine-image":
         raise ValidationException(
-            message="The model `grok-imagine-1.0-edit` is required for image edits.",
+            message="Image edit requires model `grok-imagine-image`.",
             param="model",
             code="model_not_supported",
         )
@@ -577,7 +577,7 @@ async def create_image(
         request.stream = False
 
     validate_generation_request(request)
-    model_id = request.model or "grok-imagine-1.0"
+    model_id = request.model or "grok-imagine-image"
     n = int(request.n or 1)
     concurrency = max(1, min(3, int(request.concurrency or 1)))
     image_method = _image_generation_method()
@@ -778,7 +778,7 @@ async def edit_image(
     prompt: str = Form(...),
     image: Optional[List[UploadFile]] = File(None),
     image_alias: Optional[List[UploadFile]] = File(None, alias="image[]"),
-    model: Optional[str] = Form("grok-imagine-1.0-edit"),
+    model: Optional[str] = Form("grok-imagine-image"),
     n: int = Form(1),
     size: str = Form("1024x1024"),
     quality: str = Form("standard"),
@@ -827,7 +827,7 @@ async def edit_image(
     images = (image or []) + (image_alias or [])
     validate_edit_request(edit_request, images)
 
-    model_id = edit_request.model or "grok-imagine-1.0-edit"
+    model_id = edit_request.model or "grok-imagine-image"
     n = int(edit_request.n or 1)
 
     await enforce_daily_quota(api_key, model_id, image_count=n)
