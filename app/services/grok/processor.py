@@ -297,19 +297,14 @@ class VideoStreamProcessor(BaseProcessor):
     
     def _build_video_html(self, video_url: str, thumbnail_url: str = "") -> str:
         """
-        同时输出 Markdown 标记和 HTML，兼容不同客户端：
-        - Markdown: [video](url) 便于 Cherry Studio 等解析为视频结果
-        - HTML:  保持对现有前端的兼容
+        输出纯 HTML <video> 片段，便于前端/客户端直接内嵌预览。
         """
-        md_part = f"[video]({video_url})"
         if get_config("grok.video_poster_preview", False):
-            html_part = _build_video_poster_preview(video_url, thumbnail_url)
-        else:
-            poster_attr = f' poster="{thumbnail_url}"' if thumbnail_url else ""
-            html_part = f'''<video id="video" controls="" preload="none"{poster_attr}>
+            return _build_video_poster_preview(video_url, thumbnail_url)
+        poster_attr = f' poster="{thumbnail_url}"' if thumbnail_url else ""
+        return f'''<video id="video" controls="" preload="none"{poster_attr}>
   <source id="mp4" src="{video_url}" type="video/mp4">
 </video>'''
-        return md_part + "\n\n" + html_part
     
     async def process(self, response: AsyncIterable[bytes]) -> AsyncGenerator[str, None]:
         """处理视频流式响应"""
@@ -381,24 +376,31 @@ class VideoCollectProcessor(BaseProcessor):
     
     def _build_video_html(self, video_url: str, thumbnail_url: str = "") -> str:
         """
-        同时输出 Markdown 标记和 HTML，兼容不同客户端：
-        - Markdown: [video](url) 便于 Cherry Studio 等解析为视频结果
-        - HTML:  保持对现有前端的兼容
+        输出纯 HTML <video> 片段，供需要富文本渲染的客户端使用。
+        注意：非流式接口的对外标准格式仍通过结构化 content 块返回（见 process）。
         """
-        md_part = f"[video]({video_url})"
         if get_config("grok.video_poster_preview", False):
-            html_part = _build_video_poster_preview(video_url, thumbnail_url)
-        else:
-            poster_attr = f' poster="{thumbnail_url}"' if thumbnail_url else ""
-            html_part = f'''<video id="video" controls="" preload="none"{poster_attr}>
+            return _build_video_poster_preview(video_url, thumbnail_url)
+        poster_attr = f' poster="{thumbnail_url}"' if thumbnail_url else ""
+        return f'''<video id="video" controls="" preload="none"{poster_attr}>
   <source id="mp4" src="{video_url}" type="video/mp4">
 </video>'''
-        return md_part + "\n\n" + html_part
     
     async def process(self, response: AsyncIterable[bytes]) -> dict[str, Any]:
-        """处理并收集视频响应"""
+        """
+        处理并收集视频响应（非流式）
+
+        对外返回格式对齐 OpenAI Chat Completions（带 output_video 块）：
+        - object: chat.completion
+        - choices[0].message.content: [
+            { "type": "output_video",
+              "video": { "url": "...", "thumbnail_url": "..." } },
+            { "type": "output_text", "text": "<markdown+html 兼容内容>" }
+          ]
+        """
         response_id = ""
-        content = ""
+        video_url: str | None = None
+        thumbnail_url: str | None = None
         
         try:
             async for line in response:
@@ -414,23 +416,52 @@ class VideoCollectProcessor(BaseProcessor):
                 if video_resp := resp.get("streamingVideoGenerationResponse"):
                     if video_resp.get("progress") == 100:
                         response_id = resp.get("responseId", "")
-                        video_url = video_resp.get("videoUrl", "")
-                        thumbnail_url = video_resp.get("thumbnailImageUrl", "")
-                        
-                        if video_url:
-                            final_video_url = await self.process_url(video_url, "video")
-                            final_thumbnail_url = ""
-                            if thumbnail_url:
-                                final_thumbnail_url = await self.process_url(thumbnail_url, "image")
-                            
-                            content = self._build_video_html(final_video_url, final_thumbnail_url)
-                            logger.info(f"Video generated: {video_url}")
+                        raw_video_url = video_resp.get("videoUrl", "")
+                        raw_thumb_url = video_resp.get("thumbnailImageUrl", "")
+
+                        if raw_video_url:
+                            video_url = await self.process_url(raw_video_url, "video")
+                            if raw_thumb_url:
+                                thumbnail_url = await self.process_url(raw_thumb_url, "image")
+                            logger.info(f"Video generated: {raw_video_url}")
                             
         except Exception as e:
             logger.error(f"Video collect processing error: {e}", extra={"model": self.model})
         finally:
             await self.close()
-        
+
+        # 构造 OpenAI 风格的 message.content 块
+        content_blocks: list[dict[str, Any]] = []
+
+        if video_url:
+            content_blocks.append(
+                {
+                    "type": "output_video",
+                    "video": {
+                        "url": video_url,
+                        # 与 OpenAI 对齐的可选字段，当前仅提供缩略图 URL，其他留空给上层按需扩展
+                        "thumbnail_url": thumbnail_url or "",
+                    },
+                }
+            )
+
+            # 附带一份兼容旧版前端的 markdown+html 文本（可选）
+            legacy_text = self._build_video_html(video_url, thumbnail_url or "")
+            content_blocks.append(
+                {
+                    "type": "output_text",
+                    "text": legacy_text,
+                }
+            )
+        else:
+            # 没有生成成功时，返回一个简单的文本块，避免 content 为空
+            content_blocks.append(
+                {
+                    "type": "output_text",
+                    "text": "Video generation failed or returned empty result.",
+                }
+            )
+
         return {
             "id": response_id,
             "object": "chat.completion",
@@ -438,7 +469,11 @@ class VideoCollectProcessor(BaseProcessor):
             "model": self.model,
             "choices": [{
                 "index": 0,
-                "message": {"role": "assistant", "content": content, "refusal": None},
+                "message": {
+                    "role": "assistant",
+                    "content": content_blocks,
+                    "refusal": None,
+                },
                 "finish_reason": "stop"
             }],
             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}

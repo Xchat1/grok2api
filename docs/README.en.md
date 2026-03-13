@@ -31,7 +31,7 @@ uv sync
 uv run main.py
 
 # (Optional) Smoke check
-python scripts/smoke_test.py --base-url http://127.0.0.1:8000
+python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 ```
 
 - Deployment
@@ -53,7 +53,7 @@ docker compose up -d
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 # (Optional) Smoke check
-python scripts/smoke_test.py --base-url http://127.0.0.1:8000
+python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 ```
 
 ### Repo-level deployment self-check
@@ -345,7 +345,7 @@ When upgrading from older versions, the service will keep existing local data an
 
 | Module | Field | Key | Description | Default |
 | :--- | :--- | :--- | :--- | :--- |
-| **app** | `app_url` | App URL | External access URL for Grok2API (used for file links). | `http://127.0.0.1:8000` |
+| **app** | `app_url` | App URL | External access URL for Grok2API (used for file links). | `http://127.0.0.1:8788` |
 | | `admin_username` | Admin username | Username for the Grok2API admin panel. | `admin` |
 | | `app_key` | Admin password | Password for the Grok2API admin panel. | `admin` |
 | | `api_key` | API key | Bearer token required to call Grok2API. | `""` |

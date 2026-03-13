@@ -553,10 +553,13 @@ class DownloadService(BaseService):
         self._cleanup_running = False
     
     def _cache_path(self, file_path: str, media_type: str) -> Path:
-        """获取缓存路径"""
+        """获取缓存路径（支持嵌套目录），兼容旧版扁平化存储"""
         cache_dir = self.image_dir if media_type == "image" else self.video_dir
-        filename = file_path.lstrip('/').replace('/', '-')
-        return cache_dir / filename
+        # 新逻辑：按原始路径创建子目录，便于用 / 分隔访问
+        rel_path = Path(file_path.lstrip("/"))
+        cache_path = cache_dir / rel_path
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        return cache_path
 
     def _legacy_cache_path(self, file_path: str, media_type: str) -> Path:
         """Legacy cache path (data/temp)."""
@@ -717,18 +720,19 @@ class DownloadService(BaseService):
         }
 
     def list_files(self, media_type: str = "image", page: int = 1, page_size: int = 1000) -> Dict[str, Any]:
-        """列出本地缓存文件"""
+        """列出本地缓存文件（支持嵌套目录）"""
         cache_dir = self.image_dir if media_type == "image" else self.video_dir
         if not cache_dir.exists():
             return {"total": 0, "page": page, "page_size": page_size, "items": []}
 
-        files = [f for f in cache_dir.glob("*") if f.is_file()]
+        files = [f for f in cache_dir.rglob("*") if f.is_file()]
         items = []
         for f in files:
             try:
                 stat = f.stat()
                 items.append({
-                    "name": f.name,
+                    # 使用相对路径，保持 / 分隔，便于前端直接作为 URL 片段
+                    "name": f.relative_to(cache_dir).as_posix(),
                     "size_bytes": stat.st_size,
                     "mtime_ms": int(stat.st_mtime * 1000),
                 })
@@ -745,11 +749,11 @@ class DownloadService(BaseService):
             for item in paged:
                 item["view_url"] = f"/v1/files/image/{item['name']}"
         else:
-            preview_map = {}
+            preview_map: Dict[str, str] = {}
             if self.image_dir.exists():
-                for img in self.image_dir.glob("*"):
+                for img in self.image_dir.rglob("*"):
                     if img.is_file() and img.suffix.lower() in IMAGE_EXTS:
-                        preview_map.setdefault(img.stem, img.name)
+                        preview_map.setdefault(img.stem, img.relative_to(self.image_dir).as_posix())
             for item in paged:
                 item["view_url"] = f"/v1/files/video/{item['name']}"
                 preview_name = preview_map.get(Path(item["name"]).stem)
@@ -761,10 +765,21 @@ class DownloadService(BaseService):
     def delete_file(self, media_type: str, name: str) -> Dict[str, Any]:
         """删除单个缓存文件"""
         cache_dir = self.image_dir if media_type == "image" else self.video_dir
-        safe_name = name.replace("/", "-")
-        file_path = cache_dir / safe_name
-        if not file_path.exists():
-            return {"deleted": False}
+        # 优先按嵌套目录删除
+        try:
+            file_path = (cache_dir / name).resolve()
+            file_path.relative_to(cache_dir)
+        except Exception:
+            file_path = None
+
+        if not file_path or not file_path.exists():
+            # 兼容旧版扁平化文件名（所有 / 被替换为 -）
+            legacy_name = name.replace("/", "-")
+            legacy_path = cache_dir / legacy_name
+            if not legacy_path.exists():
+                return {"deleted": False}
+            file_path = legacy_path
+
         try:
             file_path.unlink()
             return {"deleted": True}
@@ -777,7 +792,7 @@ class DownloadService(BaseService):
         if not cache_dir.exists():
             return {"count": 0, "size_mb": 0.0}
             
-        files = list(cache_dir.glob("*"))
+        files = [f for f in cache_dir.rglob("*") if f.is_file()]
         total_size = sum(f.stat().st_size for f in files)
         count = 0
         

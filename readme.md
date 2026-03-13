@@ -33,7 +33,7 @@ uv sync
 uv run main.py
 
 # （可选）启动后自检
-python scripts/smoke_test.py --base-url http://127.0.0.1:8000
+python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 ```
 
 - 项目部署
@@ -55,7 +55,7 @@ docker compose up -d
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 # （可选）启动后自检
-python scripts/smoke_test.py --base-url http://127.0.0.1:8000
+python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 ```
 
 ### 仓库级部署自检
@@ -382,7 +382,7 @@ curl http://localhost:8000/v1/images/edits \
 
 | 模块                  | 字段                         | 配置名       | 说明                                                 | 默认值                                                    |
 | :-------------------- | :--------------------------- | :----------- | :--------------------------------------------------- | :-------------------------------------------------------- |
-| **app**         | `app_url`                  | 应用地址     | 当前 Grok2API 服务的外部访问 URL，用于文件链接访问。 | `http://127.0.0.1:8000`                                 |
+| **app**         | `app_url`                  | 应用地址     | 当前 Grok2API 服务的外部访问 URL，用于文件链接访问。 | `http://127.0.0.1:8788`                                 |
 |                       | `admin_username`           | 后台账号     | 登录 Grok2API 服务管理后台的用户名。                 | `admin`                                                 |
 |                       | `app_key`                  | 后台密码     | 登录 Grok2API 服务管理后台的密码，请妥善保管。       | `admin`                                                 |
 |                       | `api_key`                  | API 密钥     | 调用 Grok2API 服务所需的 Bearer Token，请妥善保管。  | `""`                                                    |
