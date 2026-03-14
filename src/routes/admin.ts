@@ -809,11 +809,13 @@ adminRoutes.get("/api/v1/admin/cache/list", requireAdminAuth, async (c) => {
     const { total, items } = await listCacheRowsByType(c.env.DB, type, pageSize, offset);
     const mapped = items.map((it) => {
       const name = it.key.startsWith(`${type}/`) ? it.key.slice(type.length + 1) : it.key;
+      const viewUrl = `/images/${encodeURIComponent(name)}`;
       return {
         name,
         size_bytes: it.size,
         mtime_ms: it.last_access_at || it.created_at,
-        preview_url: type === "image" ? `/images/${encodeURIComponent(name)}` : "",
+        preview_url: viewUrl,
+        view_url: viewUrl,
       };
     });
 

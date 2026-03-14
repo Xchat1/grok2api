@@ -134,6 +134,18 @@ python scripts/smoke_test.py --base-url https://<你的域名或workers.dev>
 
 强烈建议登录后立刻修改（在「设置」里改 `admin_password` / `admin_username`）。
 
+### 本地一键部署到 CF（自动创建/复用 D1 + KV）
+
+在项目根目录设置环境变量后执行：
+
+```bash
+export CLOUDFLARE_API_TOKEN="你的 API Token"
+export CLOUDFLARE_ACCOUNT_ID="你的 Account ID"
+npm run deploy:cf
+```
+
+会依次：自动创建或复用 D1 / KV、生成 `wrangler.ci.toml`、执行 D1 迁移、部署 Worker。无需手动填写 `wrangler.toml` 里的 `database_id` 或 KV `id`。
+
 ---
 
 ## 5.1) GitHub Actions 一键部署（推荐）

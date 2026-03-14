@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "ensure-cf": "python3 scripts/ensure_cf_resources.py",
+    "deploy:cf": "npm run ensure-cf && npx wrangler d1 migrations apply DB --remote --config wrangler.ci.toml && npx wrangler deploy --config wrangler.ci.toml",
     "db:migrate": "wrangler d1 migrations apply DB --remote",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
