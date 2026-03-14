@@ -79,15 +79,15 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 
 ### Admin panel
 
-URL: `http://<host>:8000/login`  
+URL: `http://<host>:8788/login`  
 Default username/password: `admin` / `admin` (config keys `app.admin_username` / `app.app_key`, change it in production).
 
 Pages:
-- `http://<host>:8000/admin/token`: Token management (import/export/batch ops/auto register)
-- `http://<host>:8000/admin/keys`: API key management (stats/filter/create/edit/delete)
-- `http://<host>:8000/admin/datacenter`: Data center (metrics + log viewer)
-- `http://<host>:8000/admin/config`: Configuration (including auto register settings)
-- `http://<host>:8000/admin/cache`: Cache management (local cache + online assets)
+- `http://<host>:8788/admin/token`: Token management (import/export/batch ops/auto register)
+- `http://<host>:8788/admin/keys`: API key management (stats/filter/create/edit/delete)
+- `http://<host>:8788/admin/datacenter`: Data center (metrics + log viewer)
+- `http://<host>:8788/admin/config`: Configuration (including auto register settings)
+- `http://<host>:8788/admin/cache`: Cache management (local cache + online assets)
 
 ### Mobile Responsiveness (Site-wide)
 
@@ -144,7 +144,7 @@ Required config keys (Admin -> Config, `register.*`):
 | :--- | :--- | :--- | :--- |
 | `LOG_LEVEL` | Log level | `INFO` | `DEBUG` |
 | `SERVER_HOST` | Bind address | `0.0.0.0` | `0.0.0.0` |
-| `SERVER_PORT` | Service port | `8000` | `8000` |
+| `SERVER_PORT` | Service port | `8788` | `8788` |
 | `SERVER_WORKERS` | Uvicorn worker count | `1` | `2` |
 | `SERVER_STORAGE_TYPE` | Storage type (`local`/`redis`/`mysql`/`pgsql`) | `local` | `pgsql` |
 | `SERVER_STORAGE_URL` | Storage URL (empty for local) | `""` | `postgresql+asyncpg://user:password@host:5432/db` |
@@ -190,7 +190,7 @@ Only the following upstream model IDs are supported (no aliases):
 > Generic endpoint: chat, image generation, image editing, video generation, video upscaling
 
 ```bash
-curl http://localhost:8000/v1/chat/completions \
+curl http://localhost:8788/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
@@ -226,7 +226,7 @@ Note: any other parameters will be discarded and ignored.
 > Image endpoint: image generation, image editing
 
 ```bash
-curl http://localhost:8000/v1/images/generations \
+curl http://localhost:8788/v1/images/generations \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
@@ -266,7 +266,7 @@ Notes:
 > Get the active image-generation backend mode (used by `/chat` and `/admin/chat` to toggle the experimental waterfall UI).
 
 ```bash
-curl http://localhost:8000/v1/images/method \
+curl http://localhost:8788/v1/images/method \
   -H "Authorization: Bearer $GROK2API_API_KEY"
 ```
 
@@ -283,7 +283,7 @@ Response example:
 > Image edit endpoint (`multipart/form-data`)
 
 ```bash
-curl http://localhost:8000/v1/images/edits \
+curl http://localhost:8788/v1/images/edits \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -F "model=grok-imagine-image" \
   -F "prompt=Add sunglasses to this cat" \

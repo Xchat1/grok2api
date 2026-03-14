@@ -36,7 +36,7 @@ RUN sed -i 's/\r$//' /app/scripts/*.sh || true \
 
 RUN mkdir -p /app/data /app/data/tmp /app/logs
 
-EXPOSE 8000
+EXPOSE 8788
 
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 CMD ["/app/scripts/start.sh"]

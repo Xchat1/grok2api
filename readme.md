@@ -81,17 +81,17 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 
 ### 管理面板
 
-访问地址：`http://<host>:8000/login`
+访问地址：`http://<host>:8788/login`
 
 默认账号密码：`admin` / `admin`（对应配置项 `app.admin_username` / `app.app_key`，建议上线后修改）。
 
 常用页面：
-- `http://<host>:8000/admin/token`：Token 管理（导入/导出/批量操作/自动注册）
-- `http://<host>:8000/admin/keys`：API Key 管理（统计/筛选/新增/编辑/删除）
-- `http://<host>:8000/admin/datacenter`：数据中心（常用指标 + 日志查看）
-- `http://<host>:8000/admin/config`：配置管理（含自动注册所需配置）
-- `http://<host>:8000/admin/config#available-models`：可用模型（与配置管理同页，锚点定位；列表与官方对齐，支持一键复制模型 ID）
-- `http://<host>:8000/admin/cache`：缓存管理（本地缓存 + 在线资产）
+- `http://<host>:8788/admin/token`：Token 管理（导入/导出/批量操作/自动注册）
+- `http://<host>:8788/admin/keys`：API Key 管理（统计/筛选/新增/编辑/删除）
+- `http://<host>:8788/admin/datacenter`：数据中心（常用指标 + 日志查看）
+- `http://<host>:8788/admin/config`：配置管理（含自动注册所需配置）
+- `http://<host>:8788/admin/config#available-models`：可用模型（与配置管理同页，锚点定位；列表与官方对齐，支持一键复制模型 ID）
+- `http://<host>:8788/admin/cache`：缓存管理（本地缓存 + 在线资产）
 
 ### 手机端适配（全站）
 
@@ -158,7 +158,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 | :---------------------- | :-------------------------------------------------- | :---------- | :-------------------------------------------------- |
 | `LOG_LEVEL`           | 日志级别                                            | `INFO`    | `DEBUG`                                           |
 | `SERVER_HOST`         | 服务监听地址                                        | `0.0.0.0` | `0.0.0.0`                                         |
-| `SERVER_PORT`         | 服务端口                                            | `8000`    | `8000`                                            |
+| `SERVER_PORT`         | 服务端口                                            | `8788`    | `8788`                                            |
 | `SERVER_WORKERS`      | Uvicorn worker 数量                                 | `1`       | `2`                                               |
 | `SERVER_STORAGE_TYPE` | 存储类型（`local`/`redis`/`mysql`/`pgsql`） | `local`   | `pgsql`                                           |
 | `SERVER_STORAGE_URL`  | 存储连接串（local 时可为空）                        | `""`      | `postgresql+asyncpg://user:password@host:5432/db` |
@@ -215,7 +215,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 > 通用接口，支持对话聊天、图像生成、图像编辑、视频生成、视频超分
 
 ```bash
-curl http://localhost:8000/v1/chat/completions \
+curl http://localhost:8788/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
@@ -252,7 +252,7 @@ curl http://localhost:8000/v1/chat/completions \
 > 图像生成接口
 
 ```bash
-curl http://localhost:8000/v1/images/generations \
+curl http://localhost:8788/v1/images/generations \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
@@ -293,7 +293,7 @@ curl http://localhost:8000/v1/images/generations \
 > 返回当前生图后端方式（`/chat` 与 `/admin/chat` 用于判断是否启用“新生图瀑布流 + 宽高比 + 并发”）
 
 ```bash
-curl http://localhost:8000/v1/images/method \
+curl http://localhost:8788/v1/images/method \
   -H "Authorization: Bearer $GROK2API_API_KEY"
 ```
 
@@ -321,7 +321,7 @@ curl http://localhost:8000/v1/images/method \
 > 图像编辑接口（`multipart/form-data`）
 
 ```bash
-curl http://localhost:8000/v1/images/edits \
+curl http://localhost:8788/v1/images/edits \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -F "model=grok-imagine-image" \
   -F "prompt=给这只猫加一副太阳镜" \
