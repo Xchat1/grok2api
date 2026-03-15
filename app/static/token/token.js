@@ -1,4 +1,4 @@
-﻿let apiKey = '';
+let apiKey = '';
 let allTokens = {};
 let flatTokens = [];
 let isBatchProcessing = false;
@@ -1093,10 +1093,28 @@ function exportTokens() {
   document.body.removeChild(a);
 }
 
+function copyFallback(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) {
+    document.body.removeChild(ta);
+    return false;
+  }
+}
+
 async function copyToClipboard(text, btn) {
   if (!text) return;
-  try {
-    await navigator.clipboard.writeText(text);
+  const showSuccess = () => {
     const originalHtml = btn.innerHTML;
     btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
     btn.classList.remove('text-gray-400');
@@ -1106,8 +1124,20 @@ async function copyToClipboard(text, btn) {
       btn.classList.add('text-gray-400');
       btn.classList.remove('text-green-500');
     }, 2000);
+  };
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      if (!copyFallback(text)) throw new Error('execCommand copy failed');
+    }
+    showSuccess();
   } catch (err) {
-    console.error('Copy failed', err);
+    if (copyFallback(text)) {
+      showSuccess();
+    } else {
+      console.error('Copy failed', err);
+    }
   }
 }
 

@@ -256,12 +256,41 @@ function generateRandomApiKey() {
   return `sk-${randomSegment(24)}`;
 }
 
+function copyFallback(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) {
+    document.body.removeChild(ta);
+    return false;
+  }
+}
+
 async function copyToClipboard(text, silent = false) {
   try {
-    await navigator.clipboard.writeText(text);
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      if (!copyFallback(text)) throw new Error('execCommand copy failed');
+    }
     if (!silent) showToast('已复制', 'success');
     return true;
   } catch (e) {
+    try {
+      if (copyFallback(text)) {
+        if (!silent) showToast('已复制', 'success');
+        return true;
+      }
+    } catch (_) {}
     if (!silent) showToast('复制失败', 'error');
     return false;
   }
