@@ -1041,39 +1041,160 @@ function closeImportModal() {
   modal.classList.remove('is-open');
   setTimeout(() => {
     modal.classList.add('hidden');
-    const input = document.getElementById('import-text');
-    if (input) input.value = '';
+    const textInput = document.getElementById('import-text');
+    const fileInput = document.getElementById('import-files');
+    if (textInput) textInput.value = '';
+    if (fileInput) fileInput.value = '';
+    // Reset to text method
+    const textRadio = document.querySelector('input[name="import-method"][value="text"]');
+    if (textRadio) textRadio.checked = true;
+    switchImportMethod('text');
   }, 200);
+}
+
+function switchImportMethod(method) {
+  const textSection = document.getElementById('import-text-section');
+  const fileSection = document.getElementById('import-file-section');
+  if (method === 'file') {
+    textSection.classList.add('hidden');
+    fileSection.classList.remove('hidden');
+  } else {
+    fileSection.classList.add('hidden');
+    textSection.classList.remove('hidden');
+  }
+}
+
+function onFileSelect() {
+  const fileInput = document.getElementById('import-files');
+  const preview = document.getElementById('file-preview');
+  const countSpan = document.getElementById('file-count');
+
+  if (fileInput && fileInput.files.length > 0) {
+    countSpan.textContent = fileInput.files.length;
+    preview.classList.remove('hidden');
+  } else {
+    preview.classList.add('hidden');
+  }
 }
 
 async function submitImport() {
   const pool = document.getElementById('import-pool').value.trim() || 'ssoBasic';
-  const text = document.getElementById('import-text').value;
-  const lines = text.split('\n');
+  const method = document.querySelector('input[name="import-method"]:checked').value;
 
-  lines.forEach(line => {
-    const t = normalizeSsoToken(line.trim());
-    if (t && !flatTokens.some(ft => getTokenKey(ft.token) === t)) {
-      flatTokens.push({
-        token: t,
-        pool: pool,
-        status: 'active',
-        quota: 80,
-        quota_known: true,
-        heavy_quota: -1,
-        heavy_quota_known: false,
-        token_type: poolToType(pool),
-        note: '',
-        use_count: 0,
-        _selected: false
-      });
+  let tokens = [];
+
+  if (method === 'text') {
+    // Text input method
+    const text = document.getElementById('import-text').value;
+    const lines = text.split('\n');
+    lines.forEach(line => {
+      const t = normalizeSsoToken(line.trim());
+      if (t) tokens.push(t);
+    });
+  } else if (method === 'file') {
+    // File upload method
+    const fileInput = document.getElementById('import-files');
+    if (!fileInput || !fileInput.files.length) {
+      showToast('请选择要导入的文件', 'error');
+      return;
     }
+
+    for (const file of fileInput.files) {
+      try {
+        const content = await readFileContent(file);
+        const fileTokens = parseFileContent(content, file.name);
+        tokens.push(...fileTokens);
+      } catch (e) {
+        showToast(`读取文件 ${file.name} 失败: ${e.message}`, 'error');
+        return;
+      }
+    }
+  }
+
+  // Remove duplicates and existing tokens
+  const uniqueTokens = [];
+  const existingKeys = new Set(flatTokens.map(t => getTokenKey(t.token)));
+
+  tokens.forEach(token => {
+    const key = getTokenKey(token);
+    if (!existingKeys.has(key) && !uniqueTokens.some(t => getTokenKey(t) === key)) {
+      uniqueTokens.push(token);
+    }
+  });
+
+  if (uniqueTokens.length === 0) {
+    showToast('没有找到有效的token或所有token已存在', 'warning');
+    return;
+  }
+
+  // Add tokens to flatTokens
+  uniqueTokens.forEach(token => {
+    flatTokens.push({
+      token: token,
+      pool: pool,
+      status: 'active',
+      quota: 80,
+      quota_known: true,
+      heavy_quota: -1,
+      heavy_quota_known: false,
+      token_type: poolToType(pool),
+      note: '',
+      use_count: 0,
+      _selected: false
+    });
   });
 
   await syncToServer();
   closeImportModal();
   applyFilters();
   loadData();
+  showToast(`成功导入 ${uniqueTokens.length} 个token`, 'success');
+}
+
+function readFileContent(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(new Error('文件读取失败'));
+    reader.readAsText(file);
+  });
+}
+
+function parseFileContent(content, filename) {
+  const tokens = [];
+
+  if (filename.endsWith('.json')) {
+    // Parse JSON file
+    try {
+      const data = JSON.parse(content);
+      if (typeof data === 'object' && data !== null) {
+        // Check if it's an array of objects
+        if (Array.isArray(data)) {
+          data.forEach(item => {
+            if (typeof item === 'object' && item.sso) {
+              const token = normalizeSsoToken(item.sso);
+              if (token) tokens.push(token);
+            }
+          });
+        } else if (data.sso) {
+          // Single object with sso field
+          const token = normalizeSsoToken(data.sso);
+          if (token) tokens.push(token);
+        }
+      }
+    } catch (e) {
+      throw new Error('JSON 格式错误');
+    }
+  } else if (filename.endsWith('.txt')) {
+    // Parse text file (one token per line)
+    const lines = content.split('\n');
+    lines.forEach(line => {
+      const token = normalizeSsoToken(line.trim());
+      if (token) tokens.push(token);
+    });
+  }
+
+  return tokens;
 }
 
 // Export Logic

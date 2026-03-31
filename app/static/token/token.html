@@ -289,9 +289,32 @@
           </select>
         </div>
         <div>
+          <label class="modal-label mb-1 block">导入方式</label>
+          <div class="flex gap-2">
+            <label class="flex items-center">
+              <input type="radio" name="import-method" value="text" checked onchange="switchImportMethod('text')">
+              <span class="ml-2 text-sm">文本输入</span>
+            </label>
+            <label class="flex items-center">
+              <input type="radio" name="import-method" value="file" onchange="switchImportMethod('file')">
+              <span class="ml-2 text-sm">文件上传</span>
+            </label>
+          </div>
+        </div>
+        <div id="import-text-section">
           <label class="modal-label mb-1 block">Token 列表（每行一个）</label>
           <textarea id="import-text" class="geist-input font-mono h-48"
             placeholder="粘贴 Token，一行一个..."></textarea>
+        </div>
+        <div id="import-file-section" class="hidden">
+          <label class="modal-label mb-1 block">选择文件</label>
+          <input type="file" id="import-files" multiple accept=".json,.txt" class="geist-input" onchange="onFileSelect()">
+          <div class="text-xs text-[var(--accents-5)] mt-1">
+            支持 .json 和 .txt 文件。JSON 文件将自动解析 "sso" 字段，txt 文件按行读取。
+          </div>
+          <div id="file-preview" class="mt-2 text-xs text-[var(--accents-5)] hidden">
+            已选择 <span id="file-count">0</span> 个文件
+          </div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
           <button onclick="closeImportModal()" class="geist-button-outline text-xs px-3">取消</button>
