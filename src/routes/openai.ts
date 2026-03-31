@@ -1081,24 +1081,12 @@ function nonEmptyPromptOrError(prompt: string) {
 }
 
 function invalidGenerationModelOrError(model: string) {
-  if (model !== IMAGE_GENERATION_MODEL_ID) {
-    return {
-      message: `The model '${IMAGE_GENERATION_MODEL_ID}' is required for image generations.`,
-      code: "model_not_supported",
-    };
-  }
   if (!isValidModel(model)) return { message: `Model '${model}' not supported`, code: "model_not_supported" };
   if (!isValidImageModel(model)) return { message: `Model '${model}' is not an image model`, code: "invalid_model" };
   return null;
 }
 
 function invalidEditModelOrError(model: string) {
-  if (model !== IMAGE_EDIT_MODEL_ID) {
-    return {
-      message: `The model '${IMAGE_EDIT_MODEL_ID}' is required for image edits.`,
-      code: "model_not_supported",
-    };
-  }
   if (!isValidModel(model)) return { message: `Model '${model}' not supported`, code: "model_not_supported" };
   if (!isValidImageModel(model)) return { message: `Model '${model}' is not an image model`, code: "invalid_model" };
   return null;
