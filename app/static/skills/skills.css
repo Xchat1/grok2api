@@ -33,23 +33,6 @@
   gap: 0.75rem;
 }
 
-.skill-icon {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-}
-
-.skill-icon svg {
-  width: 22px;
-  height: 22px;
-}
-
 .skill-title {
   font-size: 1rem;
   font-weight: 600;

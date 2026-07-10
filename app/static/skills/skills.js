@@ -1,24 +1,6 @@
 // 技能中心：按能力维度展示 Grok2API 提供的全部技能。
 // 数据与渲染均在前端完成；模型示例与 /v1/models、model_catalog 保持一致。
 
-const ICONS = {
-  chat:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
-  responses:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
-  image:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
-  edit:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
-  film:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 7h5M17 17h5"/></svg>',
-  hd:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><text x="12" y="15.2" font-family="system-ui, -apple-system, Arial, sans-serif" font-size="8" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none">HD</text></svg>',
-  bulb:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.142 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.142 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/></svg>',
-  list:
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
-};
 
 const EXAMPLE_MODELS = {
   chat: "grok-4.5",
@@ -37,7 +19,6 @@ const SKILLS = [
     subtitle: "Model Catalog",
     category: "基础能力",
     color: "#444",
-    icon: ICONS.list,
     desc: "查询当前实例支持的全部模型 ID（与配置管理「可用模型」、后端 model_catalog 同步）。",
     tags: ["发现", "25 模型", "OpenAI 兼容"],
     method: "GET",
@@ -59,7 +40,6 @@ const SKILLS = [
     subtitle: "Chat Completions",
     category: "对话与推理",
     color: "#0070f3",
-    icon: ICONS.chat,
     desc: "OpenAI 兼容文本对话，支持流式输出、思维链与工具调用（prompt 模拟）。",
     tags: ["文本", "流式", "tools"],
     method: "POST",
@@ -92,7 +72,6 @@ const SKILLS = [
     subtitle: "Codex / Agents",
     category: "对话与推理",
     color: "#0ea5e9",
-    icon: ICONS.responses,
     desc: "OpenAI Responses 协议，供 Codex CLI 等 Agent 使用；支持流式 function_call 事件。",
     tags: ["Codex", "Agent", "tools"],
     method: "POST",
@@ -125,7 +104,6 @@ const SKILLS = [
     subtitle: "Reasoning / Thinking",
     category: "对话与推理",
     color: "#11998e",
-    icon: ICONS.bulb,
     desc: "为推理向模型开启思维链，或通过 reasoning 档位提升推导质量。",
     tags: ["推理", "思维链", "reasoning"],
     method: "POST",
@@ -156,7 +134,6 @@ const SKILLS = [
     subtitle: "Image Generation",
     category: "图像能力",
     color: "#7928ca",
-    icon: ICONS.image,
     desc: "文生图，支持 imagine 系列模型、多种比例与流式返回。",
     tags: ["文生图", "lite", "并发"],
     method: "POST",
@@ -188,7 +165,6 @@ const SKILLS = [
     subtitle: "Image Editing",
     category: "图像能力",
     color: "#e0489e",
-    icon: ICONS.edit,
     desc: "基于参考图编辑，multipart 上传原图与提示词。",
     tags: ["图生图", "上传", "编辑"],
     method: "POST",
@@ -217,7 +193,6 @@ const SKILLS = [
     subtitle: "Video Generation",
     category: "视频能力",
     color: "#f5a623",
-    icon: ICONS.film,
     desc: "文生视频，可通过 Chat 接口或专用 Videos 接口调用。",
     tags: ["文生视频", "video_config", "/v1/videos"],
     method: "POST",
@@ -254,7 +229,6 @@ const SKILLS = [
     subtitle: "HD Video (not upscale)",
     category: "视频能力",
     color: "#ff8c00",
-    icon: ICONS.hd,
     desc: "生成时直接输出 HD 分辨率；并非对已有视频文件做超分辨率后处理。",
     tags: ["HD", "生成时", "非超分"],
     method: "POST",
@@ -302,7 +276,6 @@ function renderSkillCards() {
     const cards = groups[cat].map((s) => `
       <div class="skill-card" data-skill="${escapeAttr(s.id)}" role="button" tabindex="0">
         <div class="skill-card-head">
-          <div class="skill-icon" style="background:${escapeAttr(s.color)}">${escapeHtml(s.icon)}</div>
           <div>
             <div class="skill-title">${escapeHtml(s.title)}</div>
             <div class="skill-subtitle">${escapeHtml(s.subtitle)}</div>
