@@ -73,7 +73,7 @@ async function refreshLocalStats() {
       headers: buildAuthHeaders(apiKey)
     });
     if (res.status === 401) {
-      logout();
+      handleUnauthorized();
       return;
     }
     if (!res.ok) return;
@@ -148,17 +148,28 @@ function cacheUI() {
   ui.mediaNext = document.getElementById('media-next');
 }
 
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function ensureUI() {
   if (!ui.batchActions) cacheUI();
+}
+
+const MODAL_TRANSITION_MS = 200;
+
+function openModal(el) {
+  if (!el) return;
+  el.classList.remove('hidden');
+  requestAnimationFrame(() => el.classList.add('is-open'));
+}
+
+function closeModal(el, onClosed) {
+  if (!el) {
+    if (onClosed) onClosed();
+    return;
+  }
+  el.classList.remove('is-open');
+  setTimeout(() => {
+    el.classList.add('hidden');
+    if (onClosed) onClosed();
+  }, MODAL_TRANSITION_MS);
 }
 
 let confirmResolver = null;
@@ -167,46 +178,97 @@ function setupConfirmDialog() {
   const dialog = ui.confirmDialog;
   if (!dialog) return;
 
-  dialog.addEventListener('close', () => {
-    if (!confirmResolver) return;
-    const ok = dialog.returnValue === 'ok';
-    confirmResolver(ok);
-    confirmResolver = null;
-  });
-
-  dialog.addEventListener('cancel', (event) => {
-    event.preventDefault();
-    dialog.close('cancel');
-  });
-
   dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) {
-      dialog.close('cancel');
-    }
+    if (event.target === dialog) closeConfirm(false);
   });
-
+  dialog.querySelectorAll('[data-close-confirm]').forEach((btn) =>
+    btn.addEventListener('click', () => closeConfirm(false)),
+  );
   if (ui.confirmOk) {
-    ui.confirmOk.addEventListener('click', () => dialog.close('ok'));
+    ui.confirmOk.addEventListener('click', () => closeConfirm(true));
   }
   if (ui.confirmCancel) {
-    ui.confirmCancel.addEventListener('click', () => dialog.close('cancel'));
+    ui.confirmCancel.addEventListener('click', () => closeConfirm(false));
   }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (dialog.classList.contains('is-open')) closeConfirm(false);
+    if (ui.failureDialog && ui.failureDialog.classList.contains('is-open')) closeFailure();
+  });
 }
 
 function setupFailureDialog() {
   const dialog = ui.failureDialog;
   if (!dialog) return;
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) closeFailure();
+  });
+  dialog.querySelectorAll('[data-close-failure]').forEach((btn) =>
+    btn.addEventListener('click', () => closeFailure()),
+  );
   if (ui.failureClose) {
-    ui.failureClose.addEventListener('click', () => dialog.close());
+    ui.failureClose.addEventListener('click', () => closeFailure());
   }
   if (ui.failureRetry) {
     ui.failureRetry.addEventListener('click', () => retryFailed());
   }
-  dialog.addEventListener('click', (event) => {
-    if (event.target === dialog) {
-      dialog.close();
+}
+
+function confirmAction(message, options = {}) {
+  ensureUI();
+  const dialog = ui.confirmDialog;
+  if (!dialog) {
+    return Promise.resolve(window.confirm(message));
+  }
+  if (ui.confirmMessage) ui.confirmMessage.textContent = message;
+  if (ui.confirmOk) ui.confirmOk.textContent = options.okText || '确定';
+  if (ui.confirmCancel) ui.confirmCancel.textContent = options.cancelText || '取消';
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+    openModal(dialog);
+  });
+}
+
+function closeConfirm(ok) {
+  const dialog = ui.confirmDialog;
+  closeModal(dialog, () => {
+    if (confirmResolver) {
+      confirmResolver(ok);
+      confirmResolver = null;
     }
   });
+}
+
+let failureResolver = null;
+
+function showFailureDetails() {
+  ensureUI();
+  const dialog = ui.failureDialog;
+  if (!dialog || !ui.failureList) return;
+  let action = currentBatchAction || lastBatchAction;
+  if (!action) {
+    action = deleteFailed.size > 0 ? 'delete' : 'load';
+  }
+  const failures = action === 'delete' ? deleteFailed : loadFailed;
+  ui.failureList.innerHTML = '';
+  failures.forEach((reason, token) => {
+    const item = document.createElement('div');
+    item.className = 'failure-item';
+    const tokenEl = document.createElement('div');
+    tokenEl.className = 'failure-token';
+    tokenEl.textContent = getMaskedToken(token);
+    const reasonEl = document.createElement('div');
+    reasonEl.textContent = reason;
+    item.appendChild(tokenEl);
+    item.appendChild(reasonEl);
+    ui.failureList.appendChild(item);
+  });
+  openModal(dialog);
+}
+
+function closeFailure() {
+  closeModal(ui.failureDialog);
 }
 
 function setupBatchControls() {
@@ -219,21 +281,6 @@ function setupBatchControls() {
   if (ui.failureDetailsBtn) {
     ui.failureDetailsBtn.addEventListener('click', () => showFailureDetails());
   }
-}
-
-function confirmAction(message, options = {}) {
-  ensureUI();
-  const dialog = ui.confirmDialog;
-  if (!dialog || typeof dialog.showModal !== 'function') {
-    return Promise.resolve(window.confirm(message));
-  }
-  if (ui.confirmMessage) ui.confirmMessage.textContent = message;
-  if (ui.confirmOk) ui.confirmOk.textContent = options.okText || '确定';
-  if (ui.confirmCancel) ui.confirmCancel.textContent = options.cancelText || '取消';
-  return new Promise(resolve => {
-    confirmResolver = resolve;
-    dialog.showModal();
-  });
 }
 
 function formatTime(ms) {
@@ -283,7 +330,7 @@ async function loadStats(options = {}) {
     });
 
     if (res.status === 401) {
-      logout();
+      handleUnauthorized();
       return;
     }
     const data = await res.json();
@@ -457,21 +504,21 @@ function renderAccountTable(data) {
       countText = '异常';
     }
     return `
-      <tr class="${rowClass}">
+      <tr class="${rowClass}" data-token="${escapeAttr(row.token)}">
         <td class="text-center">
-          <input type="checkbox" class="checkbox" data-token="${row.token}" ${checked} onchange="toggleSelect('${row.token}', this)">
+          <input type="checkbox" class="checkbox" ${checked} onchange="toggleSelect(this.closest('tr').dataset.token, this)">
         </td>
         <td class="text-left">
              <div class="flex items-center gap-2">
-                <span class="font-mono text-xs text-gray-500" title="${row.token}">${row.token_masked}</span>
+                <span class="font-mono text-xs text-gray-500" title="${escapeAttr(row.token)}">${escapeHtml(row.token_masked)}</span>
              </div>
         </td>
-        <td class="text-center"><span class="badge badge-gray">${row.pool || '-'}</span></td>
-        <td class="text-center"><span class="badge ${statusClass}" title="${escapeHtml(row.status)}">${countText}</span></td>
-        <td class="text-left text-xs text-gray-500">${lastClear}</td>
+        <td class="text-center"><span class="badge badge-gray">${escapeHtml(row.pool || '-')}</span></td>
+        <td class="text-center"><span class="badge ${statusClass}" title="${escapeAttr(row.status)}">${countText}</span></td>
+        <td class="text-left text-xs text-gray-500">${escapeHtml(lastClear)}</td>
         <td class="text-center">
           <div class="flex items-center justify-center gap-2">
-              <button class="cache-icon-button" onclick="clearOnlineCache('${row.token}')" title="清空">
+              <button class="cache-icon-button" onclick="clearOnlineCache(this.closest('tr').dataset.token)" title="清空">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
               </button>
           </div>
@@ -839,19 +886,20 @@ function renderLocalCacheList(type, items) {
     const timeText = formatTime(item.mtime_ms);
     const checked = selected.has(item.name) ? 'checked' : '';
     const rowClass = selected.has(item.name) ? 'row-selected' : '';
+    const safeUrl = isSafeUrl(item.view_url || '') ? escapeAttr(item.view_url) : '';
     const thumb = type === 'image'
-      ? `<img src="${item.view_url}" alt="" />`
-      : `<video src="${item.view_url}" muted playsinline></video>`;
+      ? `<img src="${safeUrl}" alt="" />`
+      : `<video src="${safeUrl}" muted playsinline></video>`;
     return `
-      <div class="cache-grid-item ${rowClass}" data-name="${item.name}" onclick="viewLocalFile('${type}', '${item.name}')">
+      <div class="cache-grid-item ${rowClass}" data-type="${type}" data-name="${escapeAttr(item.name)}" onclick="viewLocalFile(this.dataset.type, this.dataset.name)">
         <div class="cache-grid-checkbox" onclick="event.stopPropagation();">
-          <input type="checkbox" class="checkbox" data-name="${item.name}" ${checked} onchange="toggleLocalSelect('${type}', '${item.name}', this)">
+          <input type="checkbox" class="checkbox" ${checked} onchange="toggleLocalSelect(this.closest('.cache-grid-item').dataset.type, this.closest('.cache-grid-item').dataset.name, this)">
         </div>
         <div class="cache-grid-thumb">
           ${thumb}
         </div>
         <div class="cache-grid-meta">
-          <div class="cache-grid-name">${item.name}</div>
+          <div class="cache-grid-name">${escapeHtml(item.name)}</div>
           <div class="cache-grid-sub">
             <span>${formatSize(item.size_bytes)}</span>
             <span>${timeText}</span>
@@ -1132,31 +1180,6 @@ function getMaskedToken(token) {
   return token.length > 12 ? `${token.slice(0, 6)}...${token.slice(-4)}` : token;
 }
 
-function showFailureDetails() {
-  ensureUI();
-  const dialog = ui.failureDialog;
-  if (!dialog || !ui.failureList) return;
-  let action = currentBatchAction || lastBatchAction;
-  if (!action) {
-    action = deleteFailed.size > 0 ? 'delete' : 'load';
-  }
-  const failures = action === 'delete' ? deleteFailed : loadFailed;
-  ui.failureList.innerHTML = '';
-  failures.forEach((reason, token) => {
-    const item = document.createElement('div');
-    item.className = 'failure-item';
-    const tokenEl = document.createElement('div');
-    tokenEl.className = 'failure-token';
-    tokenEl.textContent = getMaskedToken(token);
-    const reasonEl = document.createElement('div');
-    reasonEl.textContent = reason;
-    item.appendChild(tokenEl);
-    item.appendChild(reasonEl);
-    ui.failureList.appendChild(item);
-  });
-  dialog.showModal();
-}
-
 function retryFailed() {
   const action = currentBatchAction || lastBatchAction || (deleteFailed.size > 0 ? 'delete' : 'load');
   const failures = action === 'delete' ? deleteFailed : loadFailed;
@@ -1166,7 +1189,7 @@ function retryFailed() {
     showToast('请等待当前任务结束', 'info');
     return;
   }
-  if (ui.failureDialog) ui.failureDialog.close();
+  closeFailure();
   if (action === 'delete') {
     startBatchDelete(tokens);
   } else {

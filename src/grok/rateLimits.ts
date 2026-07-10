@@ -4,6 +4,28 @@ import { toRateLimitModel } from "./models";
 
 const RATE_LIMIT_API = "https://grok.com/rest/rate-limits";
 
+export function extractRemainingQuota(
+  result: Record<string, unknown> | null | undefined,
+  bucket: "normal" | "heavy" = "normal",
+): number | null {
+  if (!result || typeof result !== "object") return null;
+
+  const legacy = (result as any).remainingTokens;
+  if (typeof legacy === "number" && Number.isFinite(legacy)) return legacy;
+
+  const direct = (result as any).remainingQueries;
+  if (typeof direct === "number" && Number.isFinite(direct)) return direct;
+
+  const effortKey = bucket === "heavy" ? "highEffortRateLimits" : "lowEffortRateLimits";
+  const nested = (result as any)[effortKey];
+  if (nested && typeof nested === "object") {
+    const nestedRemaining = (nested as any).remainingQueries ?? (nested as any).remainingTokens;
+    if (typeof nestedRemaining === "number" && Number.isFinite(nestedRemaining)) return nestedRemaining;
+  }
+
+  return null;
+}
+
 export async function checkRateLimits(
   cookie: string,
   settings: GrokSettings,

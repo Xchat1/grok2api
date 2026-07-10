@@ -4,6 +4,13 @@ version = "0.1.0"
 description = "Grok2API (FastAPI backend + Cloudflare Workers/Pages variant)"
 readme = "readme.md"
 requires-python = ">=3.13"
+authors = [{ name = "Xchat1", url = "https://github.com/Xchat1" }]
+
+[project.urls]
+Homepage = "https://github.com/Xchat1/grok2api"
+Repository = "https://github.com/Xchat1/grok2api"
+Issues = "https://github.com/Xchat1/grok2api/issues"
+
 dependencies = [
     "aiofiles>=25.1.0",
     "aiomysql>=0.2.0",

@@ -4,10 +4,11 @@ set -e
 cd "$(dirname "$0")"
 
 export SERVER_PORT="${SERVER_PORT:-8788}"
+export SERVER_RELOAD="${SERVER_RELOAD:-true}"
 
 echo "停止已有进程..."
-pkill -f "uv run main.py" 2>/dev/null || true
+pkill -f "main.py" 2>/dev/null || true
 sleep 1
 
-echo "启动服务 (端口 $SERVER_PORT)..."
+echo "启动服务 (端口 $SERVER_PORT，热加载 $SERVER_RELOAD)..."
 exec uv run main.py

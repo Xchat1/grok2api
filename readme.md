@@ -1,8 +1,8 @@
 # Grok2API
 
-本项目为对 [chenyme/grok2api](https://github.com/chenyme/grok2api) 的二次修改与增强。
-
 **中文** | [English](docs/README.en.md)
+
+> 维护者：[@Xchat1](https://github.com/Xchat1) · 仓库：[github.com/Xchat1/grok2api](https://github.com/Xchat1/grok2api) · 变更记录：[CHANGELOG.md](CHANGELOG.md)
 
 > [!NOTE]
 > 本项目仅供学习与研究，使用者必须在遵循 Grok 的 **使用条款** 以及 **法律法规** 的情况下使用，不得用于非法用途。
@@ -31,15 +31,12 @@
 uv sync
 
 uv run main.py
-
-# （可选）启动后自检
-python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 ```
 
 - 项目部署
 
 ```
-git clone https://github.com/TQZHR/grok2api.git
+git clone https://github.com/Xchat1/grok2api.git
 
 # 进入项目目录
 cd grok2api
@@ -53,9 +50,6 @@ docker compose up -d
 
 # 从当前仓库源码构建并启动（可选）
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
-
-# （可选）启动后自检
-python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 ```
 
 ### 仓库级部署自检
@@ -63,7 +57,6 @@ python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 在执行一键部署前，建议先在仓库根目录运行：
 
 ```bash
-uv run pytest -q
 npm run typecheck
 python scripts/check_model_catalog_sync.py
 npx wrangler deploy --dry-run --config wrangler.toml
@@ -76,7 +69,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 > 可选：复制 `.env.example` 为 `.env`，可配置端口/日志/存储等；并可通过 `COMPOSE_PROFILES` 一键启用 `redis/pgsql/mysql`（见 `.env.example` 内示例）。
 
 > 部署一致性说明：本地（FastAPI）/ Docker / Cloudflare Workers 共用同一套管理功能语义（Token 筛选、API Key 管理、后台管理接口语义一致）。
-> 上游关键同步（2026-02-20）：已同步聊天页“重试上一条回答”与“图片加载失败点击重试”，三部署下行为一致。
+> 上游关键同步（2026-02-20）：技能中心与各管理页在三部署下行为一致。
 > Cloudflare 可通过 `.github/workflows/cloudflare-workers.yml` 一键部署（需先配置上述两个 Secrets），Docker 仍保持 `docker compose up -d` 一键启动。
 
 ### 管理面板
@@ -86,16 +79,17 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 默认账号密码：`admin` / `admin`（对应配置项 `app.admin_username` / `app.app_key`，建议上线后修改）。
 
 常用页面：
+- `http://<host>:8788/admin/skills`：技能中心（按能力维度浏览全部技能，含对话、Responses API、深度思考、图像生成/编辑、视频生成/高清视频、模型列表等，与 25 个模型及 Responses API 同步）
 - `http://<host>:8788/admin/token`：Token 管理（导入/导出/批量操作/自动注册）
 - `http://<host>:8788/admin/keys`：API Key 管理（统计/筛选/新增/编辑/删除）
-- `http://<host>:8788/admin/datacenter`：数据中心（常用指标 + 日志查看）
+- `http://<host>:8788/admin/datacenter`：数据中心（常用指标与趋势分析）
 - `http://<host>:8788/admin/config`：配置管理（含自动注册所需配置）
 - `http://<host>:8788/admin/config#available-models`：可用模型（与配置管理同页，锚点定位；列表与官方对齐，支持一键复制模型 ID）
 - `http://<host>:8788/admin/cache`：缓存管理（本地缓存 + 在线资产）
 
 ### 手机端适配（全站）
 
-- 已覆盖页面：`/login`、`/admin/token`、`/admin/keys`、`/admin/cache`、`/admin/config`、`/admin/datacenter`、`/chat`、`/admin/chat`。
+- 已覆盖页面：`/login`、`/admin/skills`、`/admin/token`、`/admin/keys`、`/admin/cache`、`/admin/config`、`/admin/datacenter`。
 - 后台顶部导航在手机端改为抽屉菜单（支持：打开/关闭、点击遮罩关闭、点击菜单项后自动收起、`Esc` 关闭）。
 - 表格在手机端保持“横向滚动优先”，不压缩列结构（Token/API Key/缓存表格行为一致）。
 - Toast 在窄屏改为左右边距自适应，不再固定最小宽度导致溢出。
@@ -173,10 +167,22 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
   - 旧账号一次性修复（best-effort）：升级后会对现有 Token 自动执行一次「同意用户协议 + 设置年龄 + 开启 NSFW」（并发 10）
 
 
+### 技能中心（`/admin/skills`）
+
+管理后台的「技能中心」按能力维度展示 Grok2API 提供的全部技能卡片，点击卡片可查看接口说明、请求参数与调用示例。当前包含 8 个技能（图标均为语义化设计）：
+
+- **模型列表**（`GET /v1/models`）：查询当前实例支持的全部模型 ID，与配置管理「可用模型」及后端模型表同步。
+- **对话**（`POST /v1/chat/completions`）：OpenAI 兼容文本对话，支持流式、思维链与工具调用。
+- **Responses API**（`POST /v1/responses`）：OpenAI Responses 协议，供 Codex CLI 等 Agent 使用。
+- **深度思考**（`POST /v1/chat/completions`，`thinking=enabled` 或 `reasoning_effort` 档位）：推理向模型思维链。
+- **图像生成**（`POST /v1/images/generations`）：文生图，支持 imagine 系列模型与比例。
+- **图像编辑**（`POST /v1/images/edits`）：基于参考图编辑，`multipart` 上传原图与提示词。
+- **视频生成**（`POST /v1/chat/completions` 或 `/v1/videos`）：文生视频，支持 `video_config`。
+- **高清视频生成**（同上，生成阶段 `resolution=HD` / `quality=high`）：直接输出高清，非对成品视频做超分。
+
 ### 可用次数
 
-- Basic 账号：80 次 / 20h
-- Super 账号：无账号，作者未测试
+账号额度随 Grok 官方策略动态变化，以管理后台「Token 管理」中各 Token 的实时状态为准，不再以固定数值说明。
 
 ### 可用模型（对齐官方 + 可用模型模块）
 
@@ -186,25 +192,22 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
   - 配置管理页底部有 **可用模型** 卡片，列出当前支持的所有模型 ID 与说明，并支持一键复制模型 ID；
   - 列表与上述模型表（model.py / models.ts）保持同步，便于开发与调试时查阅。
 
-仅支持以下源头原始 ID（无别名）：
+仅支持以下源头原始 ID（无别名）。完整列表以后端模型表 `app/services/grok/model_catalog.py`（Python）与 Cloudflare Workers `src/grok/models.ts` 为准，二者通过 `scripts/check_model_catalog_sync.py` 校验一致，共约 25 个模型。核心模型如下：
 
-| 模型名 | 说明 |
-| :----- | :--- |
-| `grok-3` | Grok 3 |
-| `grok-3-mini` | Grok 3 Mini |
-| `grok-4.20-multi-agent-beta-0309` | 4.20 Multi-Agent Beta |
-| `grok-4.20-beta-0309-reasoning` | 4.20 Reasoning |
-| `grok-4.20-beta-0309-non-reasoning` | 4.20 Non-Reasoning |
-| `grok-code-fast-1` | Code Fast 1 |
-| `grok-4-fast-reasoning` | Grok 4 Fast Reasoning |
-| `grok-4-fast-non-reasoning` | Grok 4 Fast Non-Reasoning |
-| `grok-4-1-fast-reasoning` | Grok 4.1 Fast Reasoning |
-| `grok-4-1-fast-non-reasoningeu-west-1` | 4.1 Fast EU West 1 |
-| `grok-4-1-fast-non-reasoningus-east-4` | 4.1 Fast US East 4 |
-| `grok-4-0709` | Grok 4 0709 |
-| `grok-imagine-image-pro` | 图像 Pro |
-| `grok-imagine-image` | 图像 |
-| `grok-imagine-video` | 视频 |
+| 类别 | 模型 ID | 说明 |
+| :--- | :------ | :--- |
+| 推理 | `grok-4.20-0309-multi-agent` | 4.20 Multi-Agent |
+| 推理 | `grok-4.20-0309-reasoning-console` | 4.20 Reasoning（Recommended 深度思考） |
+| 推理 | `grok-4.20-0309-non-reasoning` / `grok-4.20-0309-non-reasoning-console` | 4.20 Non-Reasoning |
+| 推理 | `grok-4.20-multi-agent-{low,medium,high,xhigh}` | 4.20 Multi-Agent 档位 |
+| 旗舰 | `grok-4.5` | Grok 4.5 旗舰 |
+| 旗舰 | `grok-4.3` / `grok-4.3-fast` / `grok-4.3-{console,low,medium,high}` | Grok 4.3 各档位 |
+| 编码 | `grok-code-fast-1` / `grok-build-0.1` / `grok-build-console` | 编码模型 |
+| 编码别名 | `gpt-5.5` | Codex 别名（Responses API 专用，不在列表中但可用） |
+| 图像 | `grok-imagine-image` / `grok-imagine-image-pro` / `grok-imagine-image-lite` | 文生图 / 图生图 |
+| 视频 | `grok-imagine-video` | 文生视频（支持 HD 与 `video_config`） |
+
+> 旧 ID `grok-4.20-0309-reasoning` 已下线，请改用 `grok-4.20-0309-reasoning-console` 或 4.3 各档位。
 
 <br>
 
@@ -212,14 +215,14 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 
 ### `POST /v1/chat/completions`
 
-> 通用接口，支持对话聊天、图像生成、图像编辑、视频生成、视频超分
+> 通用接口，支持对话聊天、图像生成、图像编辑、视频生成（视频仅在生成阶段可选 HD，无独立「视频超分」接口）
 
 ```bash
 curl http://localhost:8788/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
-    "model": "grok-4.20-beta-0309-reasoning",
+    "model": "grok-4.5",
     "messages": [{"role":"user","content":"你好"}]
   }'
 ```
@@ -290,7 +293,7 @@ curl http://localhost:8788/v1/images/generations \
 
 ### `GET /v1/images/method`
 
-> 返回当前生图后端方式（`/chat` 与 `/admin/chat` 用于判断是否启用“新生图瀑布流 + 宽高比 + 并发”）
+> 返回当前生图后端方式（用于判断是否启用“新生图瀑布流 + 宽高比 + 并发”）
 
 ```bash
 curl http://localhost:8788/v1/images/method \
@@ -307,7 +310,7 @@ curl http://localhost:8788/v1/images/method \
 
 <br>
 
-#### `imagine_ws_experimental` (`/chat` + `/admin/chat`)
+#### `imagine_ws_experimental` (图像生成实验模式)
 
 - In experimental mode, the image panel is replaced and supports two run modes: `single` and `continuous`.
 - `single` keeps using `POST /v1/images/generations` and remains response-compatible.
@@ -345,6 +348,44 @@ curl http://localhost:8788/v1/images/edits \
 | `response_format` | string | 图片返回格式 | `url`, `base64`, `b64_json`（默认跟随 `app.image_format`） |
 
 注：`mask` 参数当前未实现，会被忽略。
+
+<br>
+
+</details>
+
+<br>
+
+### `POST /v1/responses`
+
+> OpenAI Responses API 兼容接口（用于 Codex, Cursor Agent 循环等高阶 Coding Agent 场景）
+
+```bash
+curl http://localhost:8788/v1/responses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $GROK2API_API_KEY" \
+  -d '{
+    "model": "gpt-5.5",
+    "instructions": "你是一个专业的代码助手",
+    "input": ["请写一个 python 快速排序算法"],
+    "stream": true
+  }'
+```
+
+<details>
+<summary>支持的请求参数</summary>
+
+<br>
+
+| 字段 | 类型 | 说明 | 可用参数 |
+| :--- | :--- | :--- | :--- |
+| `model` | string | 模型名称 | - |
+| `input` | array/string/object | 输入内容，支持 text, image_url 等 block 块或 message 消息列表 | - |
+| `instructions` | string | 系统提示词 (System Instructions) | - |
+| `stream` | boolean | 是否开启流式输出 (SSE Event Stream) | `true`, `false` |
+| `tools` | array | 工具定义列表，会自动映射为模型的推理行为 | - |
+| `reasoning` | object | 推理配置对象，如 `{"effort": "high"}` | - |
+
+注：本项目已深度兼容 Responses 协议的工具回调和事件封装，包括 `response.output_text.delta`、`response.function_call_arguments.delta` 等事件，能完美闭环支持 Codex 客户端的本地 shell 与文件操作。
 
 <br>
 
@@ -418,23 +459,24 @@ curl http://localhost:8788/v1/images/edits \
 
 <br>
 
-## 本次修复
+## 项目结构
 
-- 修复 Token 页 `refreshStatus` 依赖全局 `event` 的问题，改为显式传入按钮引用，避免不同运行环境下按钮状态异常。
-- 新增 Token 统一归一化（`normalizeSsoToken`），修复 `sso=` 前缀导致的去重、导入、批量选择不一致问题。
-- 修复 API Key 更新接口“key 不存在仍返回成功”问题，统一为 `404`。
-- 优化 Token/API Key 页面错误提示，优先展示后端具体错误（`detail/error/message`）。
+```
+grok2api/
+├── app/                 # FastAPI 后端、管理静态页、业务服务
+│   ├── api/v1/          # OpenAI 兼容与管理 API
+│   ├── services/grok/   # Grok 调用、模型目录、工具调用
+│   └── static/          # 管理后台前端（与 Workers 共用）
+├── src/                 # Cloudflare Workers（TypeScript）
+├── scripts/             # 运维与自检脚本
+├── migrations/          # D1 数据库迁移（Workers）
+├── data/                # 运行时配置与 Token（gitignore）
+└── logs/                # 应用运行日志（gitignore）
+```
 
-## 本次更新补充（本地/Docker）
+## 致谢
 
-- 新增：导入/手动添加/外部写入新增 Token 后，会在后台自动执行 `同意协议 + 设置年龄 + 开启 NSFW`。
-- 新增：Token 管理页增加「一键刷新 NSFW」按钮，默认对全部 Token 执行上述流程。
-- 新增：批量刷新默认并发 `10`，失败后额外重试 `3` 次；重试耗尽自动标记为失效。
-- 新增配置：
-  - `token.nsfw_refresh_concurrency`（默认 `10`）
-  - `token.nsfw_refresh_retries`（默认 `3`）
-- 说明：该功能仅在 `python-fastapi`（本地/Docker）开放；`cloudflare-workers` 侧不展示该按钮。
+本项目基于开源 Grok2API 生态演进，感谢上游贡献者与社区。当前 fork 由 [@Xchat1](https://github.com/Xchat1) 维护。
 
-## Star History
+安全漏洞请参见 [SECURITY.md](SECURITY.md)，勿在公开 Issue 中提交可利用细节。
 
-[![Star History Chart](https://api.star-history.com/svg?repos=TQZHR/grok2api&type=Timeline)](https://star-history.com/#TQZHR/grok2api&Timeline)

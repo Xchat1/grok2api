@@ -2,6 +2,8 @@
 
 [中文](../readme.md) | **English**
 
+> Maintainer: [@Xchat1](https://github.com/Xchat1) · Repository: [github.com/Xchat1/grok2api](https://github.com/Xchat1/grok2api) · Changelog: [CHANGELOG.md](../CHANGELOG.md)
+
 > [!NOTE]
 > This project is for learning and research only. You must comply with Grok's Terms of Use and applicable laws. Do not use it for illegal purposes.
 
@@ -29,15 +31,12 @@ This fork additionally provides a **Cloudflare Workers / Pages** deployment (Typ
 uv sync
 
 uv run main.py
-
-# (Optional) Smoke check
-python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 ```
 
 - Deployment
 
 ```
-git clone https://github.com/TQZHR/grok2api.git
+git clone https://github.com/Xchat1/grok2api.git
 
 # Enter the project directory
 cd grok2api
@@ -51,9 +50,6 @@ docker compose up -d
 
 # Build from current source and run (optional)
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
-
-# (Optional) Smoke check
-python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 ```
 
 ### Repo-level deployment self-check
@@ -61,7 +57,6 @@ python scripts/smoke_test.py --base-url http://127.0.0.1:8788
 Run these checks before one-click deployment updates:
 
 ```bash
-uv run pytest -q
 npm run typecheck
 python scripts/check_model_catalog_sync.py
 npx wrangler deploy --dry-run --config wrangler.toml
@@ -91,7 +86,7 @@ Pages:
 
 ### Mobile Responsiveness (Site-wide)
 
-- Covered pages: `/login`, `/admin/token`, `/admin/keys`, `/admin/cache`, `/admin/config`, `/admin/datacenter`, `/chat`, `/admin/chat`.
+- Covered pages: `/login`, `/admin/skills`, `/admin/token`, `/admin/keys`, `/admin/cache`, `/admin/config`, `/admin/datacenter`.
 - Admin top navigation now uses a mobile drawer (open/close, click-mask-to-close, auto-close on link click, `Esc` to close).
 - Tables keep a horizontal-scroll-first strategy on mobile (no forced card conversion).
 - Toast notifications are edge-aware on narrow screens (no fixed minimum width overflow).
@@ -168,9 +163,9 @@ Only the following upstream model IDs are supported (no aliases):
 | :------- | :---------- |
 | `grok-3` | Grok 3 |
 | `grok-3-mini` | Grok 3 Mini |
-| `grok-4.20-multi-agent-beta-0309` | 4.20 Multi-Agent Beta |
-| `grok-4.20-beta-0309-reasoning` | 4.20 Reasoning |
-| `grok-4.20-beta-0309-non-reasoning` | 4.20 Non-Reasoning |
+| `grok-4.20-multi-agent-0309` | 4.20 Multi-Agent |
+| `grok-4.20-0309-reasoning` | 4.20 Reasoning |
+| `grok-4.20-0309-non-reasoning` | 4.20 Non-Reasoning |
 | `grok-code-fast-1` | Code Fast 1 |
 | `grok-4-fast-reasoning` | Grok 4 Fast Reasoning |
 | `grok-4-fast-non-reasoning` | Grok 4 Fast Non-Reasoning |
@@ -194,7 +189,7 @@ curl http://localhost:8788/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $GROK2API_API_KEY" \
   -d '{
-    "model": "grok-4.20-beta-0309-reasoning",
+    "model": "grok-4.20-0309-reasoning",
     "messages": [{"role":"user","content":"Hello"}]
   }'
 ```
@@ -263,7 +258,7 @@ Notes:
 <br>
 
 ### `GET /v1/images/method`
-> Get the active image-generation backend mode (used by `/chat` and `/admin/chat` to toggle the experimental waterfall UI).
+> Get the active image-generation backend mode (used to toggle the experimental waterfall UI).
 
 ```bash
 curl http://localhost:8788/v1/images/method \
@@ -307,6 +302,44 @@ curl http://localhost:8788/v1/images/edits \
 | `response_format` | string | Output format | `url`, `base64`, `b64_json` (defaults to `app.image_format`) |
 
 Note: `mask` is currently ignored.
+
+<br>
+
+</details>
+
+<br>
+
+### `POST /v1/responses`
+
+> OpenAI Responses API compatible endpoint (used in advanced coding agent scenarios such as Codex and Cursor Agent loops)
+
+```bash
+curl http://localhost:8788/v1/responses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $GROK2API_API_KEY" \
+  -d '{
+    "model": "grok-3",
+    "instructions": "You are a professional coding assistant",
+    "input": ["Please write a quicksort algorithm in Python"],
+    "stream": true
+  }'
+```
+
+<details>
+<summary>Supported request parameters</summary>
+
+<br>
+
+| Field | Type | Description | Allowed values |
+| :--- | :--- | :--- | :--- |
+| `model` | string | Model ID | - |
+| `input` | array/string/object | Input content, supports text/image_url block list or message objects | - |
+| `instructions` | string | System instructions | - |
+| `stream` | boolean | Enable streaming (SSE Event Stream) | `true`, `false` |
+| `tools` | array | Tool definitions, automatically mapped to model reasoning actions | - |
+| `reasoning` | object | Reasoning options, e.g. `{"effort": "high"}` | - |
+
+Note: This project is deeply compatible with the Responses protocol's tool callbacks and event wrappers, including `response.output_text.delta` and `response.function_call_arguments.delta` events, supporting full-lifecycle local shell and file operations in Codex clients.
 
 <br>
 
@@ -401,6 +434,4 @@ When upgrading from older versions, the service will keep existing local data an
 - Fixed API key update to return `404` for non-existent keys instead of false success.
 - Improved token/key page error messages by surfacing backend details (`detail/error/message`).
 
-## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=TQZHR/grok2api&type=Timeline)](https://star-history.com/#TQZHR/grok2api&Timeline)

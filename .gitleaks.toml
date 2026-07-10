@@ -1,0 +1,25 @@
+title = "grok2api gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known safe placeholders and test fixtures"
+paths = [
+  '''(?i)SECURITY\.md''',
+  '''(?i)\.gitleaks\.toml''',
+  '''(?i)config\.defaults\.toml''',
+  '''(?i)\.env\.example''',
+]
+
+regexes = [
+  '''YOUR_NEW_API_KEY''',
+  '''REPLACE_WITH_D1_DATABASE_ID''',
+  '''REPLACE_WITH_KV_NAMESPACE_ID''',
+  '''Bearer \$GROK2API_API_KEY''',
+  '''Bearer \{API_KEY\}''',
+  '''token-a''',
+  '''valid-key''',
+  '''global-key''',
+  '''change_me''',
+]

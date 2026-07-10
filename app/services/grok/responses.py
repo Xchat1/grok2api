@@ -10,7 +10,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 import orjson
 
 from app.services.grok.chat import ChatService
-from app.services.grok.tool_call import build_tool_prompt, parse_tool_calls, format_tool_history
+from app.services.grok.tool_call import build_tool_prompt, parse_tool_calls, format_tool_history, normalize_function_tool
 
 
 _TOOL_OUTPUT_TYPES = {
@@ -65,7 +65,7 @@ def _normalize_tools_for_chat(tools: Optional[List[Dict[str, Any]]]) -> Optional
             continue
         tool_type = tool.get("type")
         if tool_type == "function":
-            normalized.append(tool)
+            normalized.append(normalize_function_tool(tool))
             continue
         if tool_type in _BUILTIN_TOOL_TYPES:
             if tool_type.startswith("web_search"):
@@ -656,6 +656,67 @@ class ResponseStreamAdapter:
         return self._event("response.completed", payload)
 
 
+
+async def _stream_response(adapter, result, normalized_tools) -> AsyncGenerator[str, None]:
+    yield adapter.created_event()
+    yield adapter.in_progress_event()
+    async for chunk in result:
+        if not chunk:
+            continue
+        line = chunk.strip() if isinstance(chunk, str) else chunk
+        if not line:
+            continue
+        # 去除 SSE 前缀
+        if isinstance(line, str):
+            if line.startswith("data: "):
+                line = line[6:]
+            if line == "[DONE]":
+                continue
+        try:
+            data = orjson.loads(line) if isinstance(line, str) else orjson.loads(line)
+        except (orjson.JSONDecodeError, TypeError):
+            continue
+
+        if data.get("object") == "chat.completion.chunk":
+            delta = (data.get("choices") or [{}])[0].get("delta") or {}
+            if "content" in delta and delta["content"]:
+                for event in adapter.ensure_message_started():
+                    yield event
+                adapter.output_text_parts.append(delta["content"])
+                yield adapter.output_delta_event(delta["content"])
+            tool_calls = delta.get("tool_calls")
+            if isinstance(tool_calls, list):
+                for tool in tool_calls:
+                    if not isinstance(tool, dict):
+                        continue
+                    tool_index = tool.get("index", 0)
+                    call_id = tool.get("id") or _new_tool_call_id()
+                    fn = tool.get("function") or {}
+                    name = fn.get("name")
+                    args_delta = fn.get("arguments") or ""
+                    adapter.record_tool_call(
+                        tool_index, call_id, name, args_delta
+                    )
+                    for event in adapter.ensure_tool_item(
+                        tool_index, call_id, name
+                    ):
+                        yield event
+                    delta_event = adapter.tool_arguments_delta_event(
+                        tool_index, args_delta
+                    )
+                    if delta_event:
+                        yield delta_event
+
+    full_text = "".join(adapter.output_text_parts)
+    if full_text and adapter.message_started:
+        for event in adapter.output_done_events(full_text):
+            yield event
+    for event in adapter.tool_arguments_done_events():
+        yield event
+    yield adapter.completed_event()
+
+
+
 class ResponsesService:
     @staticmethod
     async def create(
@@ -775,65 +836,7 @@ class ResponsesService:
             metadata=metadata,
         )
 
-        async def _stream() -> AsyncGenerator[str, None]:
-            yield adapter.created_event()
-            yield adapter.in_progress_event()
-            async for chunk in result:
-                if not chunk:
-                    continue
-                line = chunk.strip() if isinstance(chunk, str) else chunk
-                if not line:
-                    continue
-                # 去除 SSE 前缀
-                if isinstance(line, str):
-                    if line.startswith("data: "):
-                        line = line[6:]
-                    if line == "[DONE]":
-                        continue
-                try:
-                    data = orjson.loads(line) if isinstance(line, str) else orjson.loads(line)
-                except (orjson.JSONDecodeError, TypeError):
-                    continue
-
-                if data.get("object") == "chat.completion.chunk":
-                    delta = (data.get("choices") or [{}])[0].get("delta") or {}
-                    if "content" in delta and delta["content"]:
-                        for event in adapter.ensure_message_started():
-                            yield event
-                        adapter.output_text_parts.append(delta["content"])
-                        yield adapter.output_delta_event(delta["content"])
-                    tool_calls = delta.get("tool_calls")
-                    if isinstance(tool_calls, list):
-                        for tool in tool_calls:
-                            if not isinstance(tool, dict):
-                                continue
-                            tool_index = tool.get("index", 0)
-                            call_id = tool.get("id") or _new_tool_call_id()
-                            fn = tool.get("function") or {}
-                            name = fn.get("name")
-                            args_delta = fn.get("arguments") or ""
-                            adapter.record_tool_call(
-                                tool_index, call_id, name, args_delta
-                            )
-                            for event in adapter.ensure_tool_item(
-                                tool_index, call_id, name
-                            ):
-                                yield event
-                            delta_event = adapter.tool_arguments_delta_event(
-                                tool_index, args_delta
-                            )
-                            if delta_event:
-                                yield delta_event
-
-            full_text = "".join(adapter.output_text_parts)
-            if full_text and adapter.message_started:
-                for event in adapter.output_done_events(full_text):
-                    yield event
-            for event in adapter.tool_arguments_done_events():
-                yield event
-            yield adapter.completed_event()
-
-        return _stream()
+        return _stream_response(adapter, result, normalized_tools)
 
 
 __all__ = ["ResponsesService"]

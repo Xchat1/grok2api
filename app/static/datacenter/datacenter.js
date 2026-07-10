@@ -1,6 +1,5 @@
 let apiKey = '';
 let metricsTimer = null;
-let logsTimer = null;
 
 let hourlyChart = null;
 let dailyChart = null;
@@ -42,18 +41,30 @@ function buildCharts() {
     responsive: true,
     maintainAspectRatio: false,
     animation: false,
-    plugins: { legend: { display: true } },
+    plugins: { 
+      legend: { 
+        display: true,
+        labels: { color: '#1d1d1f' }
+      } 
+    },
     scales: {
-      x: { grid: { color: 'rgba(0,0,0,0.06)' } },
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { 
+        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+        ticks: { color: '#86868b' }
+      },
+      y: { 
+        beginAtZero: true, 
+        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+        ticks: { color: '#86868b' }
+      }
     }
   };
 
   hourlyChart = new Chart(hourlyEl, {
     type: 'line',
     data: { labels: [], datasets: [
-      { label: '成功', data: [], borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.12)', tension: 0.35, fill: true },
-      { label: '失败', data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.10)', tension: 0.35, fill: true },
+      { label: '成功', data: [], borderColor: '#34c759', backgroundColor: 'rgba(52,199,89,0.1)', tension: 0.35, fill: true },
+      { label: '失败', data: [], borderColor: '#ff3b30', backgroundColor: 'rgba(255,59,48,0.08)', tension: 0.35, fill: true },
     ]},
     options: baseOpts
   });
@@ -61,8 +72,8 @@ function buildCharts() {
   dailyChart = new Chart(dailyEl, {
     type: 'bar',
     data: { labels: [], datasets: [
-      { label: '成功', data: [], backgroundColor: '#16a34a' },
-      { label: '失败', data: [], backgroundColor: '#ef4444' },
+      { label: '成功', data: [], backgroundColor: '#34c759' },
+      { label: '失败', data: [], backgroundColor: '#ff3b30' },
     ]},
     options: { ...baseOpts, scales: { x: baseOpts.scales.x, y: baseOpts.scales.y } }
   });
@@ -70,14 +81,19 @@ function buildCharts() {
   modelsChart = new Chart(modelsEl, {
     type: 'doughnut',
     data: { labels: [], datasets: [{ data: [], backgroundColor: [
-      '#2563eb', '#16a34a', '#f59e0b', '#ef4444', '#7c3aed',
-      '#06b6d4', '#84cc16', '#f97316', '#64748b', '#ec4899'
+      '#0066cc', '#34c759', '#ff9500', '#ff3b30', '#af52de',
+      '#5ac8fa', '#4cd964', '#ffcc00', '#8e8e93', '#ff2d55'
     ]}]},
     options: {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
-      plugins: { legend: { position: 'right' } }
+      plugins: { 
+        legend: { 
+          position: 'right',
+          labels: { color: '#1d1d1f' }
+        } 
+      }
     }
   });
 }
@@ -85,7 +101,7 @@ function buildCharts() {
 async function fetchMetrics() {
   const res = await fetch('/api/v1/admin/metrics', { headers: buildAuthHeaders(apiKey) });
   if (res.status === 401) {
-    logout();
+    handleUnauthorized();
     return null;
   }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -115,7 +131,6 @@ function updateMetricsUI(data) {
   setText('m-local-image', `${safeNum(li.count)} / ${safeNum(li.size_mb)} MB`);
   setText('m-local-video', `${safeNum(lv.count)} / ${safeNum(lv.size_mb)} MB`);
 
-  // Charts
   const hourly = Array.isArray(rs.hourly) ? rs.hourly : [];
   const daily = Array.isArray(rs.daily) ? rs.daily : [];
   const models = Array.isArray(rs.models) ? rs.models : [];
@@ -149,92 +164,21 @@ async function refreshMetricsOnce(silent = false) {
   }
 }
 
-async function fetchLogFiles() {
-  const res = await fetch('/api/v1/admin/logs/files', { headers: buildAuthHeaders(apiKey) });
-  if (res.status === 401) {
-    logout();
-    return null;
-  }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return await res.json();
-}
-
-async function loadLogFiles() {
-  const sel = $('log-file');
-  if (!sel) return;
-  try {
-    const data = await fetchLogFiles();
-    if (!data) return;
-    const files = Array.isArray(data.files) ? data.files : [];
-    sel.innerHTML = '';
-    files.forEach((f) => {
-      const opt = document.createElement('option');
-      opt.value = f.name;
-      opt.textContent = f.name;
-      sel.appendChild(opt);
-    });
-  } catch (e) {
-    showToast(`获取日志文件失败: ${e.message || e}`, 'error');
-  }
-}
-
-async function fetchTail(file, lines) {
-  const params = new URLSearchParams();
-  if (file) params.set('file', file);
-  params.set('lines', String(lines || 500));
-  const url = `/api/v1/admin/logs/tail?${params.toString()}`;
-  const res = await fetch(url, { headers: buildAuthHeaders(apiKey) });
-  if (res.status === 401) {
-    logout();
-    return null;
-  }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return await res.json();
-}
-
-function applyLogFilter(rawLines) {
-  const filter = ($('log-filter')?.value || '').trim();
-  if (!filter) return rawLines;
-  const lower = filter.toLowerCase();
-  return rawLines.filter((l) => String(l).toLowerCase().includes(lower));
-}
-
-async function refreshLogsOnce(silent = false) {
-  const sel = $('log-file');
-  const linesEl = $('log-lines');
-  const content = $('log-content');
-  if (!content) return;
-  try {
-    const wasAtBottom = content.scrollTop + content.clientHeight >= content.scrollHeight - 10;
-    const file = sel ? sel.value : '';
-    const n = linesEl ? Math.max(50, Math.min(5000, Number(linesEl.value || 500))) : 500;
-    const data = await fetchTail(file, n);
-    if (!data) return;
-    const rawLines = Array.isArray(data.lines) ? data.lines : [];
-    const lines = applyLogFilter(rawLines);
-    content.textContent = lines.length ? lines.join('\n') : '(空)';
-    if (wasAtBottom) content.scrollTop = content.scrollHeight;
-  } catch (e) {
-    if (!silent) showToast(`日志刷新失败: ${e.message || e}`, 'error');
-  }
-}
-
 function setupEvents() {
   const btn = $('btn-refresh');
   if (btn) {
     btn.addEventListener('click', async () => {
       await refreshMetricsOnce(false);
-      await refreshLogsOnce(true);
     });
   }
 
-  const btnClear = $('btn-clear-logs-metrics');
+  const btnClear = $('btn-clear-metrics');
   if (btnClear) {
     btnClear.addEventListener('click', async () => {
-      if (!confirm('确定要清空本地常用指标与后台日志记录吗？请求统计与请求日志将全部清空。')) return;
+      if (!confirm('确定要清空本地常用指标记录吗？请求统计与趋势图表将全部重置。')) return;
       try {
-        const res = await fetch('/api/v1/admin/logs/clear', { method: 'POST', headers: buildAuthHeaders(apiKey) });
-        if (res.status === 401) { logout(); return; }
+        const res = await fetch('/api/v1/admin/metrics/clear', { method: 'POST', headers: buildAuthHeaders(apiKey) });
+        if (res.status === 401) { handleUnauthorized(); return; }
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         if (data.success) {
@@ -246,24 +190,6 @@ function setupEvents() {
       }
     });
   }
-
-  const logRefresh = $('log-refresh');
-  if (logRefresh) {
-    logRefresh.addEventListener('click', async () => refreshLogsOnce(false));
-  }
-
-  const logFile = $('log-file');
-  if (logFile) {
-    logFile.addEventListener('change', async () => refreshLogsOnce(true));
-  }
-  const logLines = $('log-lines');
-  if (logLines) {
-    logLines.addEventListener('change', async () => refreshLogsOnce(true));
-  }
-  const logFilter = $('log-filter');
-  if (logFilter) {
-    logFilter.addEventListener('input', () => refreshLogsOnce(true));
-  }
 }
 
 function startTimers() {
@@ -272,17 +198,11 @@ function startTimers() {
     if (!isAutoRefresh()) return;
     refreshMetricsOnce(true);
   }, 5000);
-  logsTimer = setInterval(() => {
-    if (!isAutoRefresh()) return;
-    refreshLogsOnce(true);
-  }, 3000);
 }
 
 function stopTimers() {
   if (metricsTimer) clearInterval(metricsTimer);
-  if (logsTimer) clearInterval(logsTimer);
   metricsTimer = null;
-  logsTimer = null;
 }
 
 async function init() {
@@ -291,8 +211,6 @@ async function init() {
   buildCharts();
   setupEvents();
   await refreshMetricsOnce(true);
-  await loadLogFiles();
-  await refreshLogsOnce(true);
   startTimers();
 }
 

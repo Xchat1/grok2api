@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 
 from app.core.config import get_config
 from app.core.logger import logger
+from app.services.base import BaseService
 from app.services.token.manager import get_token_manager
 from app.services.register.runner import RegisterRunner
 from app.services.register.solver import SolverConfig, TurnstileSolverProcess
@@ -70,10 +71,8 @@ class RegisterJob:
             }
 
 
-class AutoRegisterManager:
+class AutoRegisterManager(BaseService):
     """Single job manager for auto registration."""
-
-    _instance: Optional["AutoRegisterManager"] = None
 
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
@@ -323,10 +322,8 @@ class AutoRegisterManager:
                     pass
 
 
-def get_auto_register_manager() -> AutoRegisterManager:
-    if AutoRegisterManager._instance is None:
-        AutoRegisterManager._instance = AutoRegisterManager()
-    return AutoRegisterManager._instance
+async def get_auto_register_manager() -> AutoRegisterManager:
+    return await AutoRegisterManager.get()
 
 
 __all__ = ["AutoRegisterManager", "get_auto_register_manager"]

@@ -1,49 +1,82 @@
-/* Config page specific styles (shared styles moved to common.css). */
+/* Config page specific styles - Premium Apple Light Refactoring */
 
 .config-section {
-  background: #fff;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  padding: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  transition: border-color 0.2s ease;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .config-section:hover {
-  border-color: #000;
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .config-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--accents-7);
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+
+.config-section-title::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: #1d1d1f;
 }
 
 .config-grid {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+/* Long sections (e.g. 自动注册) get a full-width 3-column grid */
+.config-section.config-grid-wide .config-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* 单字段占满整行（如长文本、密钥行） */
+.config-field.col-span-2 {
+  grid-column: span 2;
+}
+
+.config-section.config-grid-wide .config-field.col-span-2 {
+  grid-column: span 3;
 }
 
 .config-field {
   padding-top: 2px;
+  min-width: 0;
 }
 
 .config-field-title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--accents-7);
+  color: var(--fg);
 }
 
 .config-field-desc {
   font-size: 12px;
   color: var(--accents-4);
   line-height: 1.5;
+  margin-top: 4px;
 }
 
 .config-field-input {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .config-secret-row {
@@ -65,14 +98,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #000;
+  background: #1d1d1f;
   color: #fff;
+  border: none;
   border-radius: 6px;
-  transition: opacity 0.2s;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .config-copy-btn:hover {
-  opacity: 0.85;
+  background: #000000;
+  transform: translateY(-0.5px);
+}
+
+.config-copy-btn:active {
+  transform: scale(0.96);
 }
 
 @media (max-width: 768px) {
@@ -82,6 +123,16 @@
 
   .config-section {
     padding: 14px;
+  }
+
+  .config-grid,
+  .config-section.config-grid-wide .config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .config-field.col-span-2,
+  .config-section.config-grid-wide .config-field.col-span-2 {
+    grid-column: span 1;
   }
 
   .config-secret-row {

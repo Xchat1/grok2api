@@ -11,9 +11,9 @@ from pydantic import BaseModel, Field, field_validator
 from app.core.auth import verify_api_key
 from app.services.grok.chat import ChatService
 from app.services.grok.model import ModelService
-from app.services.grok.tool_call import build_tool_prompt, parse_tool_calls, format_tool_history
+from app.services.grok.tool_call import build_tool_prompt, parse_tool_calls, format_tool_history, normalize_function_tools
 from app.core.exceptions import ValidationException
-from app.services.quota import enforce_daily_quota
+from app.services.metrics.quota import enforce_daily_quota
 
 
 router = APIRouter(tags=["Chat"])
@@ -407,13 +407,14 @@ async def chat_completions(request: ChatCompletionRequest, api_key: Optional[str
 
         # Tool calling: 预处理消息
         messages = [msg.model_dump() for msg in request.messages]
-        has_tools = bool(request.tools)
+        normalized_tools = normalize_function_tools(request.tools) if request.tools else None
+        has_tools = bool(normalized_tools)
         if has_tools:
             # 将 tool 角色消息转换为文本格式
             messages = format_tool_history(messages)
             # 注入 tool prompt 作为 system 消息
             tool_prompt = build_tool_prompt(
-                request.tools,
+                normalized_tools,
                 tool_choice=request.tool_choice,
                 parallel_tool_calls=request.parallel_tool_calls or True,
             )
@@ -424,7 +425,8 @@ async def chat_completions(request: ChatCompletionRequest, api_key: Optional[str
             model=request.model,
             messages=messages,
             stream=request.stream,
-            thinking=thinking
+            thinking=thinking,
+            has_tools=has_tools,
         )
     
     if isinstance(result, dict):
@@ -435,7 +437,7 @@ async def chat_completions(request: ChatCompletionRequest, api_key: Optional[str
                 msg_obj = choices[0].get("message", {})
                 content = msg_obj.get("content", "")
                 if content:
-                    text_content, tool_calls_list = parse_tool_calls(content, request.tools)
+                    text_content, tool_calls_list = parse_tool_calls(content, normalized_tools)
                     if tool_calls_list:
                         msg_obj["tool_calls"] = tool_calls_list
                         msg_obj["content"] = text_content

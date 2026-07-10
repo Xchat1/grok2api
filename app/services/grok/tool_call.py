@@ -11,6 +11,74 @@ import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 
+def get_tool_function(tool: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the function definition from either Chat Completions or Responses API format."""
+    if not isinstance(tool, dict):
+        return {}
+    func = tool.get("function")
+    if isinstance(func, dict) and func.get("name"):
+        return func
+    name = tool.get("name")
+    if not name:
+        return func if isinstance(func, dict) else {}
+    return {
+        "name": name,
+        "description": tool.get("description", ""),
+        "parameters": tool.get("parameters") or tool.get("inputSchema") or {},
+    }
+
+
+def normalize_function_tool(tool: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize a single function tool to Chat Completions format."""
+    if not isinstance(tool, dict) or tool.get("type") != "function":
+        return tool
+    func = get_tool_function(tool)
+    if not func.get("name"):
+        return tool
+    return {
+        "type": "function",
+        "function": {
+            "name": func.get("name", ""),
+            "description": func.get("description", ""),
+            "parameters": func.get("parameters", {}),
+        },
+    }
+
+
+def normalize_function_tools(tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
+    """Normalize a list of function tools to Chat Completions format."""
+    if not tools:
+        return None
+    normalized: List[Dict[str, Any]] = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        if tool.get("type") == "function":
+            normalized.append(normalize_function_tool(tool))
+        else:
+            normalized.append(tool)
+    return normalized or None
+
+
+_CODING_TOOL_NAMES = {
+    "apply_patch",
+    "shell",
+    "exec_command",
+    "update_plan",
+    "view_image",
+}
+
+
+def _is_coding_toolset(tools: List[Dict[str, Any]]) -> bool:
+    for tool in tools:
+        if tool.get("type") != "function":
+            continue
+        name = get_tool_function(tool).get("name", "")
+        if name in _CODING_TOOL_NAMES:
+            return True
+    return False
+
+
 def build_tool_prompt(
     tools: List[Dict[str, Any]],
     tool_choice: Optional[Any] = None,
@@ -55,7 +123,7 @@ def build_tool_prompt(
     for tool in tools:
         if tool.get("type") != "function":
             continue
-        func = tool.get("function", {})
+        func = get_tool_function(tool)
         name = func.get("name", "")
         desc = func.get("description", "")
         params = func.get("parameters", {})
@@ -71,13 +139,26 @@ def build_tool_prompt(
     if tool_choice == "required":
         lines.append("IMPORTANT: You MUST call at least one tool in your response. Do not respond with only text.")
     elif isinstance(tool_choice, dict):
-        func_info = tool_choice.get("function", {})
+        func_info = get_tool_function(tool_choice) if tool_choice.get("type") == "function" else tool_choice.get("function", {})
         forced_name = func_info.get("name", "")
         if forced_name:
             lines.append(f"IMPORTANT: You MUST call the tool \"{forced_name}\" in your response.")
     else:
         # "auto" or default
-        lines.append("Decide whether to call a tool based on the user's request. If you don't need a tool, respond normally with text only.")
+        if _is_coding_toolset(tools):
+            lines.append(
+                "You are a coding agent. When the user asks you to create, edit, run, or inspect code/files, "
+                "you MUST use the available tools instead of only replying with text."
+            )
+            lines.append(
+                "Use apply_patch for file edits, shell or exec_command for commands, and other tools as needed. "
+                "Do not tell the user to copy/paste code manually when a tool can perform the action."
+            )
+        else:
+            lines.append(
+                "Decide whether to call a tool based on the user's request. "
+                "If you don't need a tool, respond normally with text only."
+            )
 
     lines.append("")
     lines.append("When you call a tool, you may include text before or after the <tool_call> blocks, but the tool call blocks must be valid JSON.")
@@ -186,7 +267,7 @@ def parse_tool_call_block(
     valid_names = set()
     if tools:
         for tool in tools:
-            func = tool.get("function", {})
+            func = get_tool_function(tool)
             tool_name = func.get("name")
             if tool_name:
                 valid_names.add(tool_name)
@@ -312,6 +393,9 @@ def format_tool_history(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 __all__ = [
+    "get_tool_function",
+    "normalize_function_tool",
+    "normalize_function_tools",
     "build_tool_prompt",
     "parse_tool_calls",
     "format_tool_history",

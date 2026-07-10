@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 import asyncio
 import os
 import platform
+import secrets
 import sys
 from pathlib import Path
 
@@ -18,8 +19,9 @@ if env_file.exists():
     load_dotenv(env_file)
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends
+from fastapi.responses import JSONResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.auth import verify_api_key
 from app.core.config import get_config
@@ -58,6 +60,44 @@ async def lifespan(app: FastAPI):
 
     await config.load()
 
+    # 1.0 首次启动：若后台口令为空或仍为已知弱值，则随机生成强口令并强制改密
+    from app.core.config import get_config
+
+    _weak_passwords = {"", "admin", "grok2api"}
+    _env_admin_password = os.getenv("ADMIN_PASSWORD") or ""
+    _current_app_key = str(get_config("app.app_key", "") or "").strip()
+    if _env_admin_password and _current_app_key in _weak_passwords:
+        # 由环境变量提供初始口令（容器部署常见），直接采用且不强制改密
+        await config.update(
+            {
+                "app": {
+                    "app_key": _env_admin_password,
+                    "admin_username": os.getenv("ADMIN_USERNAME") or "admin",
+                    "force_password_change": False,
+                }
+            }
+        )
+        logger.info(
+            "[数据库模式] 使用环境变量 ADMIN_PASSWORD 作为初始后台口令（已写入配置）。"
+        )
+    elif _current_app_key in _weak_passwords:
+        _new_password = secrets.token_urlsafe(24)
+        await config.update(
+            {"app": {"app_key": _new_password, "force_password_change": True}}
+        )
+        logger.warning(
+            "=" * 60
+            + "\n[安全] 已自动生成随机后台口令（请妥善保存）：\n    {}\n"
+            + "首次登录后将被要求修改。可在「配置管理」中更改。\n"
+            + "=" * 60,
+            _new_password,
+        )
+
+    # 1.2 数据库模式：确保至少有一个后台管理员账号（按当前配置播种）
+    from app.core.admin_db import ensure_initial_admin
+
+    await ensure_initial_admin()
+
     # 1.1 Old account post-migration settings (TOS + BirthDate + NSFW), best-effort
     async def _run_legacy_account_migration():
         try:
@@ -79,6 +119,11 @@ async def lifespan(app: FastAPI):
         scheduler = get_scheduler(interval)
         scheduler.start()
 
+    # 3.1 启动周期性缓存清理（H-P2）：按固定间隔回收超限缓存，不在请求路径触发
+    from app.services.grok.assets import start_cache_cleanup
+
+    start_cache_cleanup()
+
     logger.info("Application startup complete.")
     yield
 
@@ -89,7 +134,8 @@ async def lifespan(app: FastAPI):
     try:
         from app.services.register import get_auto_register_manager
 
-        await get_auto_register_manager().stop_job()
+        manager = await get_auto_register_manager()
+        await manager.stop_job()
     except Exception:
         pass
 
@@ -101,6 +147,43 @@ async def lifespan(app: FastAPI):
     if refresh_enabled:
         scheduler = get_scheduler()
         scheduler.stop()
+
+    # 停止周期性缓存清理（H-P2）
+    try:
+        from app.services.grok.assets import stop_cache_cleanup
+
+        stop_cache_cleanup()
+    except Exception:
+        pass
+
+
+class _CorsWhitelistMiddleware(BaseHTTPMiddleware):
+    """仅对白名单来源返回 CORS 头；非白名单来源不附加跨域头（浏览器按拒绝处理）。"""
+
+    async def dispatch(self, request: Request, call_next):
+        from app.core.config import get_config
+
+        origin = request.headers.get("origin")
+        allowed = get_config("app.cors_allowed_origins", []) or []
+        allow_creds = bool(get_config("app.cors_allow_credentials", True))
+        allowed_set = {str(o).strip() for o in allowed if o}
+
+        if origin and origin in allowed_set:
+            if request.method == "OPTIONS":
+                resp = Response(status_code=204)
+            else:
+                resp = await call_next(request)
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Access-Control-Allow-Credentials"] = "true" if allow_creds else "false"
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+            resp.headers["Vary"] = "Origin"
+            return resp
+
+        if request.method == "OPTIONS":
+            # 预检且来源不在白名单：明确拒绝
+            return Response(status_code=403)
+        return await call_next(request)
 
 
 def create_app() -> FastAPI:
@@ -114,14 +197,8 @@ def create_app() -> FastAPI:
     async def health():
         return {"status": "healthy", "service": "Grok2API", "runtime": "python-fastapi"}
 
-    # CORS 配置
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # CORS 配置（白名单模式，默认不允许跨域）
+    app.add_middleware(_CorsWhitelistMiddleware)
 
     # 请求日志和 ID 中间件
     app.add_middleware(ResponseLoggerMiddleware)
@@ -198,6 +275,7 @@ if __name__ == "__main__":
     host = os.getenv("SERVER_HOST", "0.0.0.0")
     port = int(os.getenv("SERVER_PORT", "8788"))
     workers = int(os.getenv("SERVER_WORKERS", "1"))
+    reload = os.getenv("SERVER_RELOAD", "false").lower() in ("true", "1", "yes")
 
     # 平台检查
     is_windows = platform.system() == "Windows"
@@ -210,10 +288,17 @@ if __name__ == "__main__":
         )
         workers = 1
 
+    if reload:
+        logger.info("Hot reload enabled. Overriding workers to 1 (None for uvicorn reload mode).")
+        workers = None
+
     uvicorn.run(
         "main:app",
         host=host,
         port=port,
         workers=workers,
+        reload=reload,
+        reload_dirs=["app"] if reload else None,
+        reload_includes=["*.py", "*.html", "*.css", "*.js"] if reload else None,
         log_level=os.getenv("LOG_LEVEL", "INFO").lower(),
     )

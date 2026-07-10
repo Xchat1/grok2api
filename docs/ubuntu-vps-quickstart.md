@@ -15,7 +15,7 @@ newgrp docker
 ## 二、克隆并启动（约 1 分钟）
 
 ```bash
-git clone https://github.com/TQZHR/grok2api.git
+git clone https://github.com/Xchat1/grok2api.git
 cd grok2api
 
 # 直接拉取镜像并后台运行（默认端口 8788）

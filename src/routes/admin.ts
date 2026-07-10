@@ -35,7 +35,7 @@ import {
   updateTokenLimits,
 } from "../repo/tokens";
 import { generateImagineWs, resolveAspectRatio } from "../grok/imagineExperimental";
-import { checkRateLimits } from "../grok/rateLimits";
+import { checkRateLimits, extractRemainingQuota } from "../grok/rateLimits";
 import { addRequestLog, clearRequestLogs, getRequestLogs, getRequestStats } from "../repo/logs";
 import { getRefreshProgress, setRefreshProgress } from "../repo/refreshProgress";
 import {
@@ -72,8 +72,37 @@ function formatBytes(sizeBytes: number): string {
 }
 
 function normalizeSsoToken(raw: string): string {
-  const t = (raw || "").trim();
-  return t.startsWith("sso=") ? t.slice(4).trim() : t;
+  let t = (raw || "").trim();
+  if (!t) return "";
+
+  if (t.toLowerCase().startsWith("cookie:")) {
+    t = t.slice(7).trim();
+  }
+
+  if (t.includes(";")) {
+    let ssoVal: string | null = null;
+    let ssoRwVal: string | null = null;
+    const parts = t.split(";");
+    for (let part of parts) {
+      part = part.trim();
+      if (part.startsWith("sso=")) {
+        ssoVal = part.slice(4).trim();
+      } else if (part.startsWith("sso-rw=")) {
+        ssoRwVal = part.slice(7).trim();
+      }
+    }
+    const extracted = ssoVal || ssoRwVal;
+    if (extracted) return extracted;
+  }
+
+  if (t.startsWith("sso=")) {
+    return t.slice(4).trim();
+  }
+  if (t.startsWith("sso-rw=")) {
+    return t.slice(7).trim();
+  }
+
+  return t;
 }
 
 async function clearKvCacheByType(
@@ -733,14 +762,13 @@ adminRoutes.post("/api/v1/admin/tokens/refresh", requireAdminAuth, async (c) => 
         const cookie = cf ? `sso-rw=${t};sso=${t};${cf}` : `sso-rw=${t};sso=${t}`;
         const tokenType = tokenTypeByToken.get(t) ?? "sso";
         const r = await checkRateLimits(cookie, settings.grok, "grok-4");
-        const remaining = (r as any)?.remainingTokens;
+        const remaining = extractRemainingQuota(r);
         let heavyRemaining: number | null = null;
         if (tokenType === "ssoSuper") {
           const rh = await checkRateLimits(cookie, settings.grok, "grok-4-heavy");
-          const hv = (rh as any)?.remainingTokens;
-          if (typeof hv === "number") heavyRemaining = hv;
+          heavyRemaining = extractRemainingQuota(rh, "heavy");
         }
-        if (typeof remaining === "number") {
+        if (remaining !== null) {
           await updateTokenLimits(c.env.DB, t, {
             remaining_queries: remaining,
             ...(heavyRemaining !== null ? { heavy_remaining_queries: heavyRemaining } : {}),
@@ -892,20 +920,12 @@ adminRoutes.get("/api/v1/admin/metrics", requireAdminAuth, async (c) => {
   }
 });
 
-adminRoutes.get("/api/v1/admin/logs/files", requireAdminAuth, async (c) => {
-  const now = nowMs();
-  return c.json({ files: [{ name: "request_logs", size_bytes: 0, mtime_ms: now }] });
-});
-
-adminRoutes.get("/api/v1/admin/logs/tail", requireAdminAuth, async (c) => {
+adminRoutes.post("/api/v1/admin/metrics/clear", requireAdminAuth, async (c) => {
   try {
-    const file = String(c.req.query("file") ?? "request_logs");
-    const limit = Math.max(50, Math.min(5000, Number(c.req.query("lines") ?? 500)));
-    const rows = await getRequestLogs(c.env.DB, limit);
-    const lines = rows.map((r) => `${r.time} | ${r.status} | ${r.model} | ${r.ip} | ${r.key_name} | ${r.error}`.trim());
-    return c.json({ file, lines });
+    await clearRequestLogs(c.env.DB);
+    return c.json({ success: true, message: "常用指标已清空" });
   } catch (e) {
-    return c.json(legacyErr(`Tail failed: ${e instanceof Error ? e.message : String(e)}`), 500);
+    return c.json(legacyErr(`Clear metrics failed: ${e instanceof Error ? e.message : String(e)}`), 500);
   }
 });
 
@@ -1039,17 +1059,16 @@ adminRoutes.post("/api/tokens/test", requireAdminAuth, async (c) => {
 
     const result = await checkRateLimits(cookie, settings.grok, "grok-4");
     if (result) {
-      const remaining = (result as any).remainingTokens ?? -1;
-      const limit = (result as any).limit ?? -1;
+      const remaining = extractRemainingQuota(result);
+      const limit = (result as any).totalQueries ?? (result as any).limit ?? -1;
 
       let heavyRemaining: number | null = null;
       if (token_type === "ssoSuper") {
         const heavy = await checkRateLimits(cookie, settings.grok, "grok-4-heavy");
-        const v = (heavy as any)?.remainingTokens;
-        if (typeof v === "number") heavyRemaining = v;
+        heavyRemaining = extractRemainingQuota(heavy, "heavy");
       }
       await updateTokenLimits(c.env.DB, token, {
-        remaining_queries: typeof remaining === "number" ? remaining : -1,
+        remaining_queries: remaining ?? -1,
         ...(heavyRemaining !== null ? { heavy_remaining_queries: heavyRemaining } : {}),
       });
       return c.json({
@@ -1057,7 +1076,7 @@ adminRoutes.post("/api/tokens/test", requireAdminAuth, async (c) => {
         message: "Token有效",
         data: {
           valid: true,
-          remaining_queries: typeof remaining === "number" ? remaining : -1,
+          remaining_queries: remaining ?? -1,
           heavy_remaining_queries: heavyRemaining !== null ? heavyRemaining : -1,
           limit,
         },
@@ -1131,14 +1150,13 @@ adminRoutes.post("/api/tokens/refresh-all", requireAdminAuth, async (c) => {
           const cookie = cf ? `sso-rw=${t.token};sso=${t.token};${cf}` : `sso-rw=${t.token};sso=${t.token}`;
           const r = await checkRateLimits(cookie, settings.grok, "grok-4");
           if (r) {
-            const remaining = (r as any).remainingTokens;
+            const remaining = extractRemainingQuota(r);
             let heavyRemaining: number | null = null;
             if (t.token_type === "ssoSuper") {
               const rh = await checkRateLimits(cookie, settings.grok, "grok-4-heavy");
-              const hv = (rh as any)?.remainingTokens;
-              if (typeof hv === "number") heavyRemaining = hv;
+              heavyRemaining = extractRemainingQuota(rh, "heavy");
             }
-            if (typeof remaining === "number") {
+            if (remaining !== null) {
               await updateTokenLimits(c.env.DB, t.token, {
                 remaining_queries: remaining,
                 ...(heavyRemaining !== null ? { heavy_remaining_queries: heavyRemaining } : {}),

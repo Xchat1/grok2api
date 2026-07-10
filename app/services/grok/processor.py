@@ -116,6 +116,7 @@ class StreamProcessor(BaseProcessor):
         self.fingerprint: str = ""
         self.think_opened: bool = False
         self.role_sent: bool = False
+        self.streamed_text: str = ""
         self.filter_tags = get_config("grok.filter_tags", [])
         self.image_format = get_config("app.image_format", "url")
         
@@ -186,12 +187,25 @@ class StreamProcessor(BaseProcessor):
                     
                     if (meta := mr.get("metadata", {})).get("llm_info", {}).get("modelHash"):
                         self.fingerprint = meta["llm_info"]["modelHash"]
+
+                    final_message = mr.get("message") or ""
+                    if final_message and not self.think_opened:
+                        if final_message.startswith(self.streamed_text):
+                            unsent = final_message[len(self.streamed_text):]
+                        elif "<tool_call>" in final_message and "<tool_call>" not in self.streamed_text:
+                            unsent = final_message
+                        else:
+                            unsent = ""
+                        if unsent:
+                            yield self._sse(unsent)
+                            self.streamed_text += unsent
                     continue
                 
                 # 普通 token
                 if (token := resp.get("token")) is not None:
                     if token and not (self.filter_tags and any(t in token for t in self.filter_tags)):
                         yield self._sse(token)
+                        self.streamed_text += token
                         
             if self.think_opened:
                 yield self._sse("</think>\n")

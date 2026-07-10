@@ -7,11 +7,11 @@
   <title>Grok2API - 缓存管理</title>
   <link rel="icon" href="/static/favicon/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-sans/style.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-mono/style.css" rel="stylesheet">
-  <link href="/static/common/common.css?v=3" rel="stylesheet">
-  <link href="/static/cache/cache.css?v=4" rel="stylesheet">
-  <link href="/static/common/toast.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans/index.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono/index.css" rel="stylesheet">
+  <link href="/static/common/common.css?v=apple" rel="stylesheet">
+  <link href="/static/cache/cache.css?v=apple" rel="stylesheet">
+  <link href="/static/common/toast.css?v=apple" rel="stylesheet">
 </head>
 
 <body class="min-h-screen flex flex-col" style="background-color: var(--bg);">
@@ -26,10 +26,11 @@
         </div>
       </div>
 
-      <div class="h-px bg-[var(--border)] my-6"></div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="stat-card cache-card" data-type="image">
+      <!-- 缓存概览 -->
+      <div class="dc-section">
+        <div class="dc-section-title">缓存概览</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="stat-card cache-card" data-type="image">
           <div class="flex items-start justify-between">
             <div>
               <div class="cache-stat-label">本地图片</div>
@@ -71,10 +72,13 @@
           </div>
         </div>
 
-        <!-- 在线资产功能已关闭，如需恢复可还原此卡片 -->
+        </div>
+
       </div>
 
+      <!-- 本地资源预览 -->
       <div id="local-cache-lists" class="space-y-4 hidden">
+        <div class="dc-section-title">本地资源预览</div>
         <div id="local-image-list" class="cache-list hidden">
           <div class="rounded-lg overflow-hidden bg-white p-4">
             <div class="flex items-center justify-between mb-3">
@@ -170,34 +174,55 @@
     </div>
   </div>
 
-  <dialog id="confirm-dialog" class="confirm-dialog">
-    <div class="confirm-dialog-body">
-      <div class="confirm-dialog-title">请确认</div>
-      <div id="confirm-message" class="confirm-dialog-message"></div>
-      <div class="confirm-dialog-actions">
-        <button id="confirm-cancel" type="button" class="geist-button-outline text-xs px-3">取消</button>
-        <button id="confirm-ok" type="button" class="geist-button-danger text-xs px-3">确定</button>
+  <div id="confirm-dialog" class="modal-overlay confirm-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+    <div class="modal-content modal-md">
+      <div class="modal-header">
+        <h3 class="modal-title" id="confirm-dialog-title">请确认</h3>
+        <button type="button" class="modal-close" data-close-confirm aria-label="关闭">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="confirm-dialog-body">
+        <div id="confirm-message" class="confirm-dialog-message"></div>
+        <div class="confirm-dialog-actions">
+          <button id="confirm-cancel" type="button" class="geist-button-outline text-xs px-3">取消</button>
+          <button id="confirm-ok" type="button" class="geist-button-danger text-xs px-3">确定</button>
+        </div>
       </div>
     </div>
-  </dialog>
+  </div>
 
-  <dialog id="failure-dialog" class="confirm-dialog">
-    <div class="confirm-dialog-body">
-      <div class="confirm-dialog-title">失败详情</div>
-      <div id="failure-list" class="failure-list"></div>
-      <div class="confirm-dialog-actions">
-        <button id="failure-close" type="button" class="geist-button-outline text-xs px-3">关闭</button>
-        <button id="failure-retry" type="button" class="geist-button text-xs px-3">重试失败项</button>
+  <div id="failure-dialog" class="modal-overlay confirm-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="failure-dialog-title">
+    <div class="modal-content modal-md">
+      <div class="modal-header">
+        <h3 class="modal-title" id="failure-dialog-title">失败详情</h3>
+        <button type="button" class="modal-close" data-close-failure aria-label="关闭">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="confirm-dialog-body">
+        <div id="failure-list" class="failure-list"></div>
+        <div class="confirm-dialog-actions">
+          <button id="failure-close" type="button" class="geist-button-outline text-xs px-3">关闭</button>
+          <button id="failure-retry" type="button" class="geist-button text-xs px-3">重试失败项</button>
+        </div>
       </div>
     </div>
-  </dialog>
+  </div>
 
-  <script src="/static/common/admin-auth.js?v=3"></script>
-  <script src="/static/common/header.js?v=4"></script>
-  <script src="/static/common/footer.js?v=1"></script>
-  <script src="/static/common/toast.js"></script>
-  <script src="/static/cache/cache.js?v=5"></script>
-  <script src="/static/common/draggable.js"></script>
+  <script src="/static/common/admin-auth.js?v=apple"></script>
+  <script src="/static/common/header.js?v=apple"></script>
+  <script src="/static/common/footer.js?v=apple"></script>
+  <script src="/static/common/toast.js?v=apple"></script>
+  <script src="/static/common/utils.js?v=apple"></script>
+  <script src="/static/cache/cache.js?v=apple"></script>
+  <script src="/static/common/draggable.js?v=apple"></script>
 </body>
 
 </html>

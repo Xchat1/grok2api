@@ -8,58 +8,136 @@
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = { theme: { extend: { colors: { border: "hsl(0 0% 89%)", input: "hsl(0 0% 89%)", ring: "hsl(0 0% 3.9%)", background: "hsl(0 0% 100%)", foreground: "hsl(0 0% 3.9%)", primary: { DEFAULT: "hsl(0 0% 9%)", foreground: "hsl(0 0% 98%)" }, secondary: { DEFAULT: "hsl(0 0% 96.1%)", foreground: "hsl(0 0% 9%)" }, muted: { DEFAULT: "hsl(0 0% 96.1%)", foreground: "hsl(0 0% 45.1%)" }, destructive: { DEFAULT: "hsl(0 84.2% 60.2%)", foreground: "hsl(0 0% 98%)" } } } } }
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        border: "rgba(255, 255, 255, 0.08)",
+                        input: "rgba(255, 255, 255, 0.06)",
+                        ring: "#a855f7",
+                        background: "#050508",
+                        foreground: "#f4f4f5",
+                        primary: {
+                            DEFAULT: "#a855f7",
+                            foreground: "#ffffff"
+                        },
+                        secondary: {
+                            DEFAULT: "rgba(255, 255, 255, 0.05)",
+                            foreground: "#f4f4f5"
+                        },
+                        muted: {
+                            DEFAULT: "rgba(255, 255, 255, 0.03)",
+                            foreground: "#a1a1aa"
+                        },
+                        destructive: {
+                            DEFAULT: "#f43f5e",
+                            foreground: "#ffffff"
+                        }
+                    }
+                }
+            }
+        }
     </script>
     <style>
+        body {
+            background-color: #050508;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(124, 58, 237, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.1) 0%, transparent 40%),
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: auto, auto, 30px 30px, 30px 30px;
+            background-position: center;
+        }
+
         @keyframes slide-up {
             from {
-                transform: translateY(100%);
+                transform: translateY(15px) scale(0.98);
                 opacity: 0
             }
 
             to {
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
                 opacity: 1
             }
         }
 
         .animate-slide-up {
-            animation: slide-up .3s ease-out
+            animation: slide-up .4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .cyber-card {
+            background: rgba(18, 18, 24, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(168, 85, 247, 0.05);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .cyber-card:hover {
+            border-color: rgba(168, 85, 247, 0.3);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9), 0 0 45px rgba(168, 85, 247, 0.12);
+        }
+
+        .cyber-btn {
+            background: linear-gradient(135deg, #a855f7, #6366f1);
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+            transition: all 0.2s;
+        }
+
+        .cyber-btn:hover:not(:disabled) {
+            box-shadow: 0 0 18px rgba(168, 85, 247, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .cyber-btn:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .cyber-input {
+            background: rgba(10, 10, 15, 0.6) !important;
+            border-color: rgba(255, 255, 255, 0.08) !important;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .cyber-input:focus {
+            border-color: #a855f7 !important;
+            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.3) !important;
         }
     </style>
 </head>
 
-<body class="h-full bg-background text-foreground antialiased">
+<body class="h-full text-foreground antialiased flex flex-col justify-center">
     <div class="flex min-h-full flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div class="sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="sm:mx-auto sm:w-full sm:max-w-md animate-slide-up">
             <div class="text-center">
-                <h1 class="text-4xl font-bold">Grok2API</h1>
-                <p class="mt-2 text-sm text-muted-foreground">管理员控制台</p>
+                <h1 class="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">Grok2API</h1>
+                <p class="mt-2 text-sm text-zinc-400">管理员控制台</p>
             </div>
         </div>
 
-        <div class="sm:mx-auto sm:w-full sm:max-w-md">
-            <div class="bg-background py-8 px-4 sm:px-10 rounded-lg">
+        <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md animate-slide-up" style="animation-delay: 0.1s;">
+            <div class="cyber-card py-8 px-4 sm:px-10 rounded-xl">
                 <form id="loginForm" class="space-y-6">
                     <div class="space-y-2">
-                        <label for="username" class="text-sm font-medium">账户</label>
+                        <label for="username" class="text-sm font-semibold text-zinc-300">账户</label>
                         <input type="text" id="username" name="username" required
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                            class="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus-visible:outline-none disabled:opacity-50 cyber-input"
                             placeholder="请输入账户">
                     </div>
                     <div class="space-y-2">
-                        <label for="password" class="text-sm font-medium">密码</label>
+                        <label for="password" class="text-sm font-semibold text-zinc-300">密码</label>
                         <input type="password" id="password" name="password" required
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                            class="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-zinc-500 focus-visible:outline-none disabled:opacity-50 cyber-input"
                             placeholder="请输入密码">
                     </div>
                     <button type="submit" id="loginButton"
-                        class="inline-flex items-center justify-center rounded-md font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-10 w-full disabled:opacity-50">登录</button>
+                        class="inline-flex items-center justify-center rounded-md font-semibold text-white h-10 w-full disabled:opacity-50 cyber-btn">登录</button>
                 </form>
 
-                <div class="mt-6 text-center text-xs text-muted-foreground space-y-1">
-                    <p>Created By TQZHR © 2026</p>
-                    <p>Fork 维护: @TQZHR</p>
+                <div class="mt-6 text-center text-xs text-zinc-500 space-y-1">
+                    <p>Grok2API Created By @Xchat1 © 2026</p>
                 </div>
             </div>
         </div>
@@ -68,7 +146,7 @@
     <script>
         const form = document.getElementById('loginForm'), btn = document.getElementById('loginButton');
         form.addEventListener('submit', async (e) => { e.preventDefault(); btn.disabled = true; btn.textContent = '登录中...'; try { const fd = new FormData(form), r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: fd.get('username'), password: fd.get('password') }) }); const d = await r.json(); d.success ? (localStorage.setItem('adminToken', d.token), location.href = '/manage') : showToast(d.message || '登录失败', 'error') } catch (e) { showToast('网络错误，请稍后重试', 'error') } finally { btn.disabled = false; btn.textContent = '登录' } });
-        function showToast(m, t = 'error') { const d = document.createElement('div'), bc = { success: 'bg-green-600', error: 'bg-destructive', info: 'bg-primary' }; d.className = `fixed bottom-4 right-4 ${bc[t] || bc.error} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium z-50 animate-slide-up`; d.textContent = m; document.body.appendChild(d); setTimeout(() => { d.style.opacity = '0'; d.style.transition = 'opacity .3s'; setTimeout(() => d.parentNode && document.body.removeChild(d), 300) }, 2000) }
+        function showToast(m, t = 'error') { const d = document.createElement('div'), bc = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-purple-600' }; d.className = `fixed bottom-4 right-4 ${bc[t] || bc.error} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium z-50 animate-slide-up`; d.textContent = m; document.body.appendChild(d); setTimeout(() => { d.style.opacity = '0'; d.style.transition = 'opacity .3s'; setTimeout(() => d.parentNode && document.body.removeChild(d), 300) }, 2000) }
         window.addEventListener('DOMContentLoaded', () => { const t = localStorage.getItem('adminToken'); t && fetch('/api/stats', { headers: { Authorization: `Bearer ${t}` } }).then(r => { if (r.ok) location.href = '/manage' }) });
     </script>
 </body>

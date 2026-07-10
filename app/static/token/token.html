@@ -7,11 +7,11 @@
   <title>Grok2API - Token 管理</title>
   <link rel="icon" href="/static/favicon/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-sans/style.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-mono/style.css" rel="stylesheet">
-  <link href="/static/common/common.css?v=3" rel="stylesheet">
-  <link href="/static/token/token.css?v=12" rel="stylesheet">
-  <link href="/static/common/toast.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans/index.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono/index.css" rel="stylesheet">
+  <link href="/static/common/common.css?v=apple" rel="stylesheet">
+  <link href="/static/token/token.css?v=apple" rel="stylesheet">
+  <link href="/static/common/toast.css?v=apple" rel="stylesheet">
 </head>
 
 <body class="min-h-screen flex flex-col" style="background-color: var(--bg);">
@@ -58,104 +58,113 @@
 
       <div class="h-px bg-[var(--border)] my-6"></div>
 
-      <!-- Statistics -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="stats-container">
-        <!-- Row 1 -->
-        <div class="stat-card">
-          <div class="stat-value" id="stat-total">-</div>
-          <div class="stat-label">Token 总数</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-green-600" id="stat-active">-</div>
-          <div class="stat-label">Token 正常</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-orange-500" id="stat-cooling">-</div>
-          <div class="stat-label">Token 限流</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-red-600" id="stat-invalid">-</div>
-          <div class="stat-label">Token 失效</div>
-        </div>
+      <!-- Statistics Section -->
+      <div class="dc-section" id="stats-section">
+        <div class="dc-section-title">状态与用量</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="stats-container">
+          <!-- Row 1 -->
+          <div class="stat-card">
+            <div class="stat-value" id="stat-total">-</div>
+            <div class="stat-label">Token 总数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-green-600" id="stat-active">-</div>
+            <div class="stat-label">Token 正常</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-orange-500" id="stat-cooling">-</div>
+            <div class="stat-label">Token 限流</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-red-600" id="stat-invalid">-</div>
+            <div class="stat-label">Token 失效</div>
+          </div>
 
-        <!-- Row 2 -->
-        <div class="stat-card">
-          <div class="stat-value" id="stat-chat-quota">-</div>
-          <div class="stat-label">Chat 剩余</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-blue-600" id="stat-image-quota">-</div>
-          <div class="stat-label">Image 剩余</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-gray-400" id="stat-video-quota">无法统计</div>
-          <div class="stat-label">Video 剩余</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-total-calls">-</div>
-          <div class="stat-label">总调用次数</div>
+          <!-- Row 2 -->
+          <div class="stat-card">
+            <div class="stat-value" id="stat-chat-quota">-</div>
+            <div class="stat-label">Chat 剩余</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-blue-600" id="stat-image-quota">-</div>
+            <div class="stat-label">Image 剩余</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-gray-400" id="stat-video-quota">无法统计</div>
+            <div class="stat-label">Video 剩余</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-total-calls">-</div>
+            <div class="stat-label">总调用次数</div>
+          </div>
         </div>
       </div>
 
-      <div id="token-filter-bar"
-        class="token-filter-bar mb-4 bg-white border border-[var(--border)] rounded-lg px-4 py-3 flex flex-wrap items-center gap-4">
-        <div class="filter-group flex items-center gap-3">
-          <span class="text-xs text-[var(--accents-5)]">类型</span>
-          <label class="filter-chip">
-            <input type="checkbox" id="filter-type-sso" onchange="onFilterChange()">
-            <span>sso</span>
-          </label>
-          <label class="filter-chip">
-            <input type="checkbox" id="filter-type-supersso" onchange="onFilterChange()">
-            <span>supersso</span>
-          </label>
+      <!-- Token Management Table Section -->
+      <div class="dc-section">
+        <div class="dc-section-title">Token 列表</div>
+        
+        <div id="token-filter-bar"
+          class="token-filter-bar mb-4 bg-white border border-[var(--border)] rounded-lg px-4 py-3 flex flex-wrap items-center gap-4">
+          <div class="filter-group flex items-center gap-3">
+            <span class="text-xs text-[var(--accents-5)]">类型</span>
+            <label class="filter-chip">
+              <input type="checkbox" id="filter-type-sso" onchange="onFilterChange()">
+              <span>sso</span>
+            </label>
+            <label class="filter-chip">
+              <input type="checkbox" id="filter-type-supersso" onchange="onFilterChange()">
+              <span>supersso</span>
+            </label>
+          </div>
+          <div class="filter-group flex items-center gap-3">
+            <span class="text-xs text-[var(--accents-5)]">状态</span>
+            <label class="filter-chip">
+              <input type="checkbox" id="filter-status-active" onchange="onFilterChange()">
+              <span>活跃</span>
+            </label>
+            <label class="filter-chip">
+              <input type="checkbox" id="filter-status-invalid" onchange="onFilterChange()">
+              <span>失效</span>
+            </label>
+            <label class="filter-chip">
+              <input type="checkbox" id="filter-status-exhausted" onchange="onFilterChange()">
+              <span>额度用尽</span>
+            </label>
+          </div>
+          <div class="filter-summary ml-auto flex items-center gap-3">
+            <span class="text-xs text-[var(--accents-5)]">结果 <span id="filter-result-count">0</span></span>
+            <button onclick="resetFilters()" class="geist-button-outline text-xs px-3 h-7">清空筛选</button>
+          </div>
         </div>
-        <div class="filter-group flex items-center gap-3">
-          <span class="text-xs text-[var(--accents-5)]">状态</span>
-          <label class="filter-chip">
-            <input type="checkbox" id="filter-status-active" onchange="onFilterChange()">
-            <span>活跃</span>
-          </label>
-          <label class="filter-chip">
-            <input type="checkbox" id="filter-status-invalid" onchange="onFilterChange()">
-            <span>失效</span>
-          </label>
-          <label class="filter-chip">
-            <input type="checkbox" id="filter-status-exhausted" onchange="onFilterChange()">
-            <span>额度用尽</span>
-          </label>
-        </div>
-        <div class="filter-summary ml-auto flex items-center gap-3">
-          <span class="text-xs text-[var(--accents-5)]">结果 <span id="filter-result-count">0</span></span>
-          <button onclick="resetFilters()" class="geist-button-outline text-xs px-3 h-7">清空筛选</button>
-        </div>
-      </div>
 
-      <!-- Token Table -->
-      <div class="rounded-lg overflow-hidden bg-white mb-4 overflow-x-auto">
-        <table class="geist-table min-w-[800px]">
-          <thead>
-            <tr>
-              <th class="w-10"><input type="checkbox" id="select-all" class="checkbox" onclick="toggleSelectAll()"></th>
-              <th class="w-48 text-left">Token</th>
-              <th class="w-24">类型</th>
-              <th class="w-24">状态</th>
-              <th class="w-20">额度</th>
-              <th class="text-left">备注</th>
-              <th class="w-32 text-center">操作</th>
-            </tr>
-          </thead>
-          <tbody id="token-table-body">
-            <!-- Dynamic Rows -->
-          </tbody>
-        </table>
-        <div id="loading" class="text-center py-12 text-[var(--accents-4)]">加载中...</div>
-        <div id="empty-state" class="hidden text-center py-12 text-[var(--accents-4)]">
-          暂无 Token，请点击右上角导入或添加。
+        <!-- Token Table -->
+        <div class="rounded-lg overflow-hidden bg-white mb-4 overflow-x-auto">
+          <table class="geist-table min-w-[800px]">
+            <thead>
+              <tr>
+                <th class="w-10"><input type="checkbox" id="select-all" class="checkbox" onclick="toggleSelectAll()"></th>
+                <th class="w-48 text-left">Token</th>
+                <th class="w-24">类型</th>
+                <th class="w-24">状态</th>
+                <th class="w-20">额度</th>
+                <th class="text-left">备注</th>
+                <th class="w-32 text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody id="token-table-body">
+              <!-- Dynamic Rows -->
+            </tbody>
+          </table>
+          <div id="loading" class="text-center py-12 text-[var(--accents-4)]">加载中...</div>
+          <div id="empty-state" class="hidden text-center py-12 text-[var(--accents-4)]">
+            暂无 Token，请点击右上角导入或添加。
+          </div>
         </div>
-      </div>
 
-      <!-- Batch Actions Bar (Floating Bottom) -->
+        <!-- Pagination -->
+        <div id="token-pagination" class="token-pagination hidden"></div>
+      </div>
 
     </div>
   </main>
@@ -367,10 +376,18 @@
     </div>
   </div>
 
-  <div id="confirm-dialog" class="modal-overlay confirm-dialog hidden">
+  <div id="confirm-dialog" class="modal-overlay confirm-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
     <div class="modal-content modal-md">
+      <div class="modal-header">
+        <h3 class="modal-title" id="confirm-dialog-title">请确认</h3>
+        <button type="button" class="modal-close" data-close-confirm aria-label="关闭">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
       <div class="confirm-dialog-body">
-        <div class="confirm-dialog-title">请确认</div>
         <div id="confirm-message" class="confirm-dialog-message"></div>
         <div class="confirm-dialog-actions">
           <button id="confirm-cancel" type="button" class="geist-button-outline text-xs px-3">取消</button>
@@ -380,12 +397,13 @@
     </div>
   </div>
 
-  <script src="/static/common/draggable.js"></script>
-  <script src="/static/common/admin-auth.js?v=3"></script>
-  <script src="/static/common/header.js?v=4"></script>
-  <script src="/static/common/footer.js?v=1"></script>
-  <script src="/static/common/toast.js"></script>
-  <script src="/static/token/token.js?v=15"></script>
+  <script src="/static/common/draggable.js?v=apple"></script>
+  <script src="/static/common/admin-auth.js?v=apple"></script>
+  <script src="/static/common/header.js?v=apple"></script>
+  <script src="/static/common/footer.js?v=apple"></script>
+  <script src="/static/common/toast.js?v=apple"></script>
+  <script src="/static/common/utils.js?v=apple"></script>
+  <script src="/static/token/token.js?v=apple"></script>
 </body>
 
 </html>

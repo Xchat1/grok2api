@@ -9,6 +9,7 @@ from app.core.logger import logger
 from app.services.token.models import TokenInfo, EffortType, TokenPoolStats, FAIL_THRESHOLD, TokenStatus
 from app.core.storage import get_storage
 from app.core.config import get_config
+from app.services.base import BaseService
 from app.services.token.pool import TokenPool
 
 # 批量刷新配置
@@ -17,12 +18,9 @@ REFRESH_BATCH_SIZE = 10
 REFRESH_CONCURRENCY = 5
 
 
-class TokenManager:
+class TokenManager(BaseService):
     """管理 Token 的增删改查和配额同步"""
-    
-    _instance: Optional["TokenManager"] = None
-    _lock = asyncio.Lock()
-    
+
     def __init__(self):
         self.pools: Dict[str, TokenPool] = {}
         self.initialized = False
@@ -31,16 +29,6 @@ class TokenManager:
         self._save_task: Optional[asyncio.Task] = None
         self._save_delay = 0.5
         self._last_reload_at = 0.0
-    
-    @classmethod
-    async def get_instance(cls) -> "TokenManager":
-        """获取单例实例"""
-        if cls._instance is None:
-            async with cls._lock:
-                if cls._instance is None:
-                    cls._instance = cls()
-                    await cls._instance._load()
-        return cls._instance
 
     async def _load(self):
         """初始化加载"""
@@ -69,8 +57,9 @@ class TokenManager:
                             # 统一存储裸 token
                             if isinstance(token_data, dict):
                                 raw_token = token_data.get("token")
-                                if isinstance(raw_token, str) and raw_token.startswith("sso="):
-                                    token_data["token"] = raw_token[4:]
+                                if isinstance(raw_token, str):
+                                    from app.services.grok.cookies import normalize_sso_token
+                                    token_data["token"] = normalize_sso_token(raw_token)
                             token_info = TokenInfo(**token_data)
                             pool.add(token_info)
                         except Exception as e:
@@ -149,10 +138,16 @@ class TokenManager:
                     break
                 self._dirty = False
                 await self._save()
+        except asyncio.CancelledError:
+            if self._dirty:
+                self._dirty = False
+                try:
+                    await self._save()
+                except Exception:
+                    pass
+            raise
         finally:
             self._save_task = None
-            if self._dirty:
-                self._schedule_save()
 
     @staticmethod
     def _extract_cookie_value(cookie_str: str, name: str) -> str | None:
@@ -168,14 +163,8 @@ class TokenManager:
 
     @classmethod
     def _normalize_input_token(cls, token_str: str) -> str:
-        raw = str(token_str or "").strip()
-        if not raw:
-            return ""
-        if ";" in raw:
-            return (cls._extract_cookie_value(raw, "sso") or "").strip()
-        if raw.startswith("sso="):
-            return raw[4:].strip()
-        return raw
+        from app.services.grok.cookies import normalize_sso_token
+        return normalize_sso_token(token_str)
 
     def _find_token_info(self, token_str: str) -> tuple[Optional[TokenInfo], str]:
         raw_token = self._normalize_input_token(token_str)
@@ -216,7 +205,8 @@ class TokenManager:
         """按模型选择可用 Token（包含 basic->super 回退与 heavy 配额桶选择）。"""
         from app.services.grok.model import ModelService
 
-        bucket = "heavy" if ModelService.is_heavy_bucket_model(model_id) else "normal"
+        # 当前仅使用 normal 配额桶（heavy 桶未启用）。
+        bucket = "normal"
         for pool_name in ModelService.pool_candidates_for_model(model_id):
             pool = self.pools.get(pool_name)
             if not pool:
@@ -294,7 +284,8 @@ class TokenManager:
 
         from app.services.grok.model import ModelService
 
-        bucket = "heavy" if ModelService.is_heavy_bucket_model(model_id) else "normal"
+        # 当前仅使用 normal 配额桶（heavy 桶未启用）。
+        bucket = "normal"
         rate_limit_model = ModelService.rate_limit_model_for(model_id)
 
         # 尝试 API 同步
@@ -304,11 +295,11 @@ class TokenManager:
             usage_service = UsageService()
             result = await usage_service.get(token_str, model_name=rate_limit_model)
             
-            if result and "remainingTokens" in result:
-                try:
-                    new_quota = int(result["remainingTokens"])
-                except Exception:
-                    new_quota = 0
+            from app.services.grok.usage import extract_remaining_quota
+
+            parsed_quota = extract_remaining_quota(result, bucket=bucket)
+            if parsed_quota is not None:
+                new_quota = parsed_quota
 
                 if bucket == "heavy":
                     old_quota = target_token.heavy_quota
@@ -356,7 +347,12 @@ class TokenManager:
         for pool in self.pools.values():
             token = pool.get(raw_token)
             if token:
-                if status_code == 401:
+                if status_code == 429:
+                    token.record_fail(status_code, reason)
+                    logger.warning(
+                        f"Token {raw_token[:10]}...: recorded 429 failure, marked cooling - {reason}"
+                    )
+                elif status_code == 401:
                     token.record_fail(status_code, reason)
                     logger.warning(
                         f"Token {raw_token[:10]}...: recorded 401 failure "
@@ -563,10 +559,12 @@ class TokenManager:
                 # 重试逻辑：最多 2 次重试
                 for retry in range(3):  # 0, 1, 2
                     try:
-                        result = await usage_service.get(token_str)
-                        
-                        if result and "remainingTokens" in result:
-                            new_quota = result["remainingTokens"]
+                        from app.services.grok.usage import extract_remaining_quota
+
+                        result = await usage_service.get(token_str, model_name="grok-3")
+
+                        new_quota = extract_remaining_quota(result)
+                        if new_quota is not None:
                             old_quota = token_info.quota
                             old_status = token_info.status
                             
@@ -648,7 +646,7 @@ class TokenManager:
 # 便捷函数
 async def get_token_manager() -> TokenManager:
     """获取 TokenManager 单例"""
-    return await TokenManager.get_instance()
+    return await TokenManager.get()
 
 
 __all__ = ["TokenManager", "get_token_manager"]

@@ -18,7 +18,7 @@ from app.core.auth import verify_api_key
 from app.core.exceptions import UpstreamException, ValidationException
 from app.services.grok.model import ModelService
 from app.services.grok.media import VideoService
-from app.services.quota import enforce_daily_quota
+from app.services.metrics.quota import enforce_daily_quota
 
 
 router = APIRouter(tags=["Videos"])

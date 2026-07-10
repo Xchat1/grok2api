@@ -8,11 +8,11 @@
   <link rel="icon" href="/static/favicon/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-sans/style.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/fonts/geist-mono/style.css" rel="stylesheet">
-  <link href="/static/common/common.css?v=3" rel="stylesheet">
-  <link href="/static/common/toast.css" rel="stylesheet">
-  <link href="/static/datacenter/datacenter.css?v=2" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans/index.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono/index.css" rel="stylesheet">
+  <link href="/static/common/common.css?v=apple" rel="stylesheet">
+  <link href="/static/common/toast.css?v=apple" rel="stylesheet">
+  <link href="/static/datacenter/datacenter.css?v=apple" rel="stylesheet">
 </head>
 
 <body class="min-h-screen flex flex-col" style="background-color: var(--bg);">
@@ -23,11 +23,11 @@
       <div class="flex flex-wrap justify-between items-start gap-3">
         <div>
           <h2 class="text-2xl font-semibold tracking-tight">数据中心</h2>
-          <p class="text-[var(--accents-4)] mt-1 text-sm">常用指标与后台日志。</p>
+          <p class="text-[var(--accents-4)] mt-1 text-sm">常用指标与趋势分析。</p>
         </div>
         <div class="datacenter-controls flex items-center gap-2">
           <button id="btn-refresh" class="geist-button-outline text-xs px-3">刷新</button>
-          <button id="btn-clear-logs-metrics" class="geist-button-outline text-xs px-3 text-amber-600 hover:text-amber-700" title="清空请求日志与常用指标记录">清空指标与日志</button>
+          <button id="btn-clear-metrics" class="geist-button-outline text-xs px-3 text-amber-600 hover:text-amber-700" title="清空请求统计与趋势记录">清空指标</button>
           <label class="dc-toggle text-xs text-[var(--accents-4)]">
             <input id="auto-refresh" type="checkbox" class="checkbox" checked>
             自动刷新
@@ -38,97 +38,90 @@
       <div class="h-px bg-[var(--border)] my-6"></div>
 
       <!-- Summary Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="stat-card">
-          <div class="stat-value" id="m-token-total">-</div>
-          <div class="stat-label">Token 总数</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-green-600" id="m-token-active">-</div>
-          <div class="stat-label">Token 正常</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-orange-500" id="m-token-cooling">-</div>
-          <div class="stat-label">Token 限流</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-red-600" id="m-token-invalid">-</div>
-          <div class="stat-label">Token 失效</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-value" id="m-total-calls">-</div>
-          <div class="stat-label">总调用次数</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="m-req-total">-</div>
-          <div class="stat-label">总请求数</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-green-600" id="m-req-success">-</div>
-          <div class="stat-label">成功请求</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value text-red-600" id="m-req-failed">-</div>
-          <div class="stat-label">失败请求</div>
+      <div class="dc-section">
+        <div class="dc-section-title">Token 状态</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="stat-card">
+            <div class="stat-value" id="m-token-total">-</div>
+            <div class="stat-label">Token 总数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-green-600" id="m-token-active">-</div>
+            <div class="stat-label">Token 正常</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-orange-500" id="m-token-cooling">-</div>
+            <div class="stat-label">Token 限流</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-red-600" id="m-token-invalid">-</div>
+            <div class="stat-label">Token 失效</div>
+          </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="stat-card">
-          <div class="stat-value" id="m-success-rate">-</div>
-          <div class="stat-label">成功率</div>
+      <div class="dc-section">
+        <div class="dc-section-title">请求统计</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="stat-card">
+            <div class="stat-value" id="m-total-calls">-</div>
+            <div class="stat-label">总调用次数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="m-req-total">-</div>
+            <div class="stat-label">总请求数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-green-600" id="m-req-success">-</div>
+            <div class="stat-label">成功请求</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-red-600" id="m-req-failed">-</div>
+            <div class="stat-label">失败请求</div>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-value" id="m-local-image">-</div>
-          <div class="stat-label">本地图片</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="m-local-video">-</div>
-          <div class="stat-label">本地视频</div>
+      </div>
+
+      <div class="dc-section">
+        <div class="dc-section-title">资源与缓存</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="stat-card">
+            <div class="stat-value" id="m-success-rate">-</div>
+            <div class="stat-label">成功率</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="m-local-image">-</div>
+            <div class="stat-label">本地图片</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="m-local-video">-</div>
+            <div class="stat-label">本地视频</div>
+          </div>
         </div>
       </div>
 
       <!-- Charts -->
-      <div class="grid grid-cols-1 gap-4">
-        <div class="card">
-          <div class="card-title">24 小时请求趋势</div>
-          <div class="chart-wrap">
-            <canvas id="chart-hourly"></canvas>
+      <div class="dc-section">
+        <div class="dc-section-title">趋势分析</div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="card">
+            <div class="card-title">24 小时请求趋势</div>
+            <div class="chart-wrap">
+              <canvas id="chart-hourly"></canvas>
+            </div>
           </div>
-        </div>
-        <div class="card">
-          <div class="card-title">7 天请求统计</div>
-          <div class="chart-wrap">
-            <canvas id="chart-daily"></canvas>
+          <div class="card">
+            <div class="card-title">7 天请求统计</div>
+            <div class="chart-wrap">
+              <canvas id="chart-daily"></canvas>
+            </div>
           </div>
-        </div>
-        <div class="card">
-          <div class="card-title">模型调用分布（Top 10）</div>
-          <div class="chart-wrap">
-            <canvas id="chart-models"></canvas>
+          <div class="card lg:col-span-2">
+            <div class="card-title">模型调用分布（Top 10）</div>
+            <div class="chart-wrap chart-wrap-wide">
+              <canvas id="chart-models"></canvas>
+            </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Logs -->
-      <div class="h-px bg-[var(--border)] my-6"></div>
-
-      <div class="space-y-3">
-        <div class="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h3 class="text-lg font-semibold tracking-tight">后台日志</h3>
-            <p class="text-[var(--accents-4)] text-sm mt-1">显示 logs/*.log（格式化展示，完整行）。</p>
-          </div>
-          <div class="log-toolbar flex items-center gap-2 flex-wrap">
-            <select id="log-file" class="geist-input text-xs w-56"></select>
-            <input id="log-lines" type="number" min="50" max="5000" value="500" class="geist-input text-xs w-24" title="尾部行数">
-            <input id="log-filter" type="text" placeholder="过滤关键词…" class="geist-input text-xs w-40">
-            <button id="log-refresh" class="geist-button-outline text-xs px-3">刷新</button>
-          </div>
-        </div>
-        <div class="log-panel">
-          <pre id="log-content" class="log-content">加载中...</pre>
         </div>
       </div>
     </div>
@@ -138,11 +131,11 @@
 
   <div id="toast-container" class="toast-container"></div>
 
-  <script src="/static/common/admin-auth.js?v=3"></script>
-  <script src="/static/common/header.js?v=4"></script>
-  <script src="/static/common/footer.js?v=1"></script>
-  <script src="/static/common/toast.js"></script>
-  <script src="/static/datacenter/datacenter.js?v=2"></script>
+  <script src="/static/common/admin-auth.js?v=apple"></script>
+  <script src="/static/common/header.js?v=apple"></script>
+  <script src="/static/common/footer.js?v=apple"></script>
+  <script src="/static/common/toast.js?v=apple"></script>
+  <script src="/static/datacenter/datacenter.js?v=apple"></script>
 </body>
 
 </html>

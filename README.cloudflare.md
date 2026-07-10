@@ -1,5 +1,7 @@
 # Grok2API（Cloudflare Workers / Pages：D1 + KV）
 
+仓库地址：<https://github.com/Xchat1/grok2api>
+
 这个仓库已经新增 **Cloudflare Workers / Pages** 可部署版本（TypeScript）。
 
 > 一键部署前置条件：若使用 GitHub Actions 工作流，请先在仓库 Secrets 配置 `CLOUDFLARE_API_TOKEN` 与 `CLOUDFLARE_ACCOUNT_ID`。  
@@ -11,8 +13,8 @@
 - **KV**：缓存 `/images/*` 的图片/视频资源（从 `assets.grok.com` 代理抓取）
 - **每天 0 点统一清除**：通过 KV `expiration` + Workers Cron 定时清理元数据（`wrangler.toml` 已配置，默认按北京时间 00:00）
 - **前端移动端适配一致生效**：Workers 与 FastAPI/Docker 复用同一套 `/static/*` 资源，包含手机端抽屉导航、表格横向滚动、API Key 居中悬浮新增弹窗等交互
-- **模型集合与主 README 对齐**：严格移除旧模型名并同步新增模型（含 `grok-4.20-beta`）
-- **聊天重试能力一致生效**：`/chat` 与 `/admin/chat` 支持“重试上一条回答”与“图片加载失败点击重试”
+- **模型集合与主 README 对齐**：严格移除旧模型名并同步最新 4.20 模型（`grok-4.20-0309-reasoning`、`grok-4.20-0309-non-reasoning`、`grok-4.20-multi-agent-0309`）
+- **三部署行为一致**：技能中心与各管理页在 Cloudflare Workers / Docker / 本地 FastAPI 下行为一致
 
 > 原 Python/FastAPI 版本仍保留用于本地/Docker；Cloudflare 部署请按本文件走 Worker 版本。
 
@@ -123,12 +125,6 @@ npx wrangler deploy
 - `GET https://<你的域名或workers.dev>/health`
 - 打开 `https://<你的域名或workers.dev>/login`
 
-（可选）冒烟测试：
-
-```bash
-python scripts/smoke_test.py --base-url https://<你的域名或workers.dev>
-```
-
 默认管理员账号密码：
 - `admin / admin`
 
@@ -162,7 +158,6 @@ npm run deploy:cf
 在触发一键部署前，可先在仓库根目录运行：
 
 ```bash
-uv run pytest -q
 npm run typecheck
 python scripts/check_model_catalog_sync.py
 npx wrangler deploy --dry-run --config wrangler.toml
@@ -222,7 +217,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml config
 
 - POST /v1/chat/completions (supports stream: true)
 - GET /v1/models (model set aligns with `readme.md`, including latest additions/removals)
-- GET /v1/images/method: returns current image-generation mode (legacy or imagine_ws_experimental) for /chat and /admin/chat UI switching
+- GET /v1/images/method: returns current image-generation mode (legacy or imagine_ws_experimental) for UI mode switching
 - POST /v1/images/generations: experimental mode supports size (aspect-ratio mapping) and concurrency (1..3)
 - POST /v1/images/edits: only accepts grok-imagine-image
 - GET /images/<img_path>: reads from KV cache; on miss fetches assets.grok.com and writes back to KV (daily expiry/cleanup policy)
@@ -286,8 +281,5 @@ region = "aws:us-east-1"
    - `/admin/keys`：点击“新增 Key”后应为居中悬浮弹窗（有遮罩，可点遮罩关闭，可 `Esc` 关闭）
    - 顶部导航：手机端应为抽屉菜单（可打开/关闭，点击菜单项后自动收起）
    - Token/Keys/Cache 表格：应保持横向滚动，不应压碎列布局
-4. 可选 smoke test：
 
-```bash
-python scripts/smoke_test.py --base-url https://<你的域名或workers.dev>
-```
+

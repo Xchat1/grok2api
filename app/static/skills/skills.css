@@ -1,0 +1,282 @@
+/* ===== 技能中心 (Skills Center) - Premium Apple Light Refactoring ===== */
+
+.skill-grid {
+  align-items: stretch;
+}
+
+.skill-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.skill-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--card-border-strong);
+}
+
+.skill-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.skill-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.skill-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.skill-title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+.skill-subtitle {
+  font-size: 0.72rem;
+  color: var(--accents-4);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.skill-desc {
+  font-size: 0.85rem;
+  color: var(--accents-5);
+  line-height: 1.5;
+  flex: 1;
+}
+
+.skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.skill-tag {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.03);
+  color: var(--accents-5);
+  border: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+.skill-endpoint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--accents-4);
+  border-top: 1px dashed var(--border);
+  padding-top: 0.75rem;
+}
+
+.skill-method {
+  font-weight: 600;
+  color: #0066cc;
+}
+
+/* ===== 详情弹窗 ===== */
+
+.skill-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.skill-modal.hidden {
+  display: none;
+}
+
+.skill-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+}
+
+.skill-modal-panel {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: 86vh;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation: skillPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes skillPop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.skill-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accents-4);
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.skill-modal-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--fg);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.skill-modal-title {
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.25rem;
+  color: var(--fg);
+}
+
+.skill-modal-sub {
+  font-size: 0.75rem;
+  color: var(--accents-4);
+  margin-bottom: 1rem;
+}
+
+.skill-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accents-4);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.skill-endpoint-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  word-break: break-all;
+  color: var(--fg);
+}
+
+.skill-params {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.skill-params th,
+.skill-params td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.skill-params th {
+  color: var(--accents-4);
+  font-weight: 600;
+  background: transparent;
+}
+
+.skill-params td {
+  color: var(--accents-5);
+  background: transparent;
+}
+
+.skill-params code {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #0066cc;
+  border: 1px solid rgba(0, 0, 0, 0.02);
+}
+
+.skill-code {
+  position: relative;
+  background: #1e1e24;
+  color: #e4e4e7;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 1.25rem 1rem 1rem;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.skill-copy-btn {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.skill-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.2);
+}

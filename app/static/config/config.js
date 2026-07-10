@@ -90,21 +90,31 @@ const LOCALE_MAP = {
 // 静态可用模型（与 ModelService / MODEL_CONFIG 对齐）
 // 仅支持源头原始 ID，与 model.py / models.ts 一致
 const STATIC_MODELS = [
-  { id: "grok-3", desc: "Grok 3" },
-  { id: "grok-3-mini", desc: "Grok 3 Mini" },
-  { id: "grok-4.20-multi-agent-beta-0309", desc: "Grok 4.20 Multi-Agent Beta 0309" },
-  { id: "grok-4.20-beta-0309-reasoning", desc: "Grok 4.20 Beta 0309 Reasoning" },
-  { id: "grok-4.20-beta-0309-non-reasoning", desc: "Grok 4.20 Beta 0309 Non-Reasoning" },
-  { id: "grok-code-fast-1", desc: "Grok Code Fast 1" },
-  { id: "grok-4-fast-reasoning", desc: "Grok 4 Fast Reasoning" },
-  { id: "grok-4-fast-non-reasoning", desc: "Grok 4 Fast Non-Reasoning" },
-  { id: "grok-4-1-fast-reasoning", desc: "Grok 4.1 Fast Reasoning" },
-  { id: "grok-4-1-fast-non-reasoningeu-west-1", desc: "Grok 4.1 Fast Non-Reasoning EU West 1" },
-  { id: "grok-4-1-fast-non-reasoningus-east-4", desc: "Grok 4.1 Fast Non-Reasoning US East 4" },
-  { id: "grok-4-0709", desc: "Grok 4 0709" },
-  { id: "grok-imagine-image-pro", desc: "Grok Imagine Image Pro" },
-  { id: "grok-imagine-image", desc: "Grok Imagine Image" },
-  { id: "grok-imagine-video", desc: "Grok Imagine Video" }
+  { id: "grok-4.20-0309-multi-agent", desc: "Grok 4.20 0309 multi agent" },
+  { id: "grok-4.20-0309-console", desc: "Grok 4.20 0309 console" },
+  { id: "grok-4.20-0309-non-reasoning", desc: "Grok 4.20 0309 non reasoning" },
+  { id: "grok-4.20-0309-non-reasoning-console", desc: "Grok 4.20 0309 non reasoning console" },
+  { id: "grok-4.20-0309-reasoning-console", desc: "Grok 4.20 0309 reasoning console" },
+  { id: "grok-4.20-fast", desc: "Grok 4.20 fast" },
+  { id: "grok-4.20-multi-agent-console", desc: "Grok 4.20 multi agent console" },
+  { id: "grok-4.20-multi-agent-low", desc: "Grok 4.20 multi agent low" },
+  { id: "grok-4.20-multi-agent-medium", desc: "Grok 4.20 multi agent medium" },
+  { id: "grok-4.20-multi-agent-high", desc: "Grok 4.20 multi agent high" },
+  { id: "grok-4.20-multi-agent-xhigh", desc: "Grok 4.20 multi agent xhigh" },
+  { id: "grok-4.5", desc: "Grok 4.5" },
+  { id: "grok-4.3", desc: "Grok 4.3" },
+  { id: "grok-4.3-fast", desc: "Grok 4.3 fast" },
+  { id: "grok-4.3-console", desc: "Grok 4.3 console" },
+  { id: "grok-4.3-low", desc: "Grok 4.3 low" },
+  { id: "grok-4.3-medium", desc: "Grok 4.3 medium" },
+  { id: "grok-4.3-high", desc: "Grok 4.3 high" },
+  { id: "grok-build-0.1", desc: "Grok build 0.1" },
+  { id: "grok-build-console", desc: "Grok build console" },
+  { id: "grok-code-fast-1", desc: "Grok code fast 1" },
+  { id: "grok-imagine-image-pro", desc: "Grok imagine image pro" },
+  { id: "grok-imagine-image", desc: "Grok imagine image" },
+  { id: "grok-imagine-image-lite", desc: "Grok imagine image lite" },
+  { id: "grok-imagine-video", desc: "Grok imagine video" }
 ];
 
 function getText(section, key) {
@@ -118,8 +128,17 @@ function getText(section, key) {
 }
 
 function getSectionLabel(section) {
-  return (LOCALE_MAP[section] && LOCALE_MAP[section].label) || `${section} 设置`;
+  return (LOCALE_MAP[section] && LOCALE_MAP[section].label) || `${escapeHtml(section)} 设置`;
 }
+
+// 与后端 SENSITIVE_KEYS 对齐：这些字段在 GET 配置时会被脱敏为 "********"
+const SECRET_FIELDS = new Set([
+  'app.app_key',
+  'app.api_key',
+  'grok.cf_clearance',
+  'register.admin_password',
+  'register.yescaptcha_key',
+]);
 
 async function init() {
   apiKey = await ensureApiKey();
@@ -136,7 +155,7 @@ async function loadData() {
       currentConfig = await res.json();
       renderConfig(currentConfig);
     } else if (res.status === 401) {
-      logout();
+      handleUnauthorized();
     }
   } catch (e) {
     showToast('连接失败', 'error');
@@ -164,6 +183,10 @@ function renderConfig(data) {
 
     const card = document.createElement('div');
     card.className = 'config-section';
+    // 字段较多的 section 用更宽的 3 列网格
+    if (section === 'register' || Object.keys(items).length >= 8) {
+      card.classList.add('config-grid-wide');
+    }
 
     const header = document.createElement('div');
     header.innerHTML = `<div class="config-section-title">${getSectionLabel(section)}</div>`;
@@ -192,6 +215,13 @@ function renderConfig(data) {
       // Container
       const fieldCard = document.createElement('div');
       fieldCard.className = 'config-field';
+      // 密钥行 / 长文本 / 长描述字段跨整行
+      const isSecret = key === 'api_key' || key === 'app_key';
+      const isJson = Array.isArray(val) || typeof val === 'object';
+      const longDesc = (text.desc || '').length > 48;
+      if (isSecret || isJson || longDesc) {
+        fieldCard.classList.add('col-span-2');
+      }
 
       // Title
       const titleEl = document.createElement('div');
@@ -302,6 +332,17 @@ function renderConfig(data) {
         input.dataset.section = section;
         input.dataset.key = key;
 
+        const isSecret = SECRET_FIELDS.has(`${section}.${key}`);
+        if (isSecret) {
+          input.dataset.secret = '1';
+          if (val === '********') {
+            input.value = '';
+            input.placeholder = '已设置，留空表示不修改';
+          } else if (val === '') {
+            input.placeholder = '未设置';
+          }
+        }
+
         if (key === 'app_key') input.type = 'text';
 
         if (key === 'api_key' || key === 'app_key') {
@@ -336,13 +377,38 @@ function renderConfig(data) {
     }
   });
 
-  // 追加“可用模型”卡片
-  renderStaticModelsSection(container);
+  // 追加“可用模型”卡片（从 /v1/models 拉取，与后端保持一致）
+  void renderStaticModelsSection(container);
 }
 
-function renderStaticModelsSection(container) {
+async function renderStaticModelsSection(container) {
   const existing = document.getElementById('available-models');
   if (existing) return;
+
+  let models = STATIC_MODELS;
+  let syncedFromApi = false;
+  try {
+    if (apiKey) {
+      const res = await fetch('/v1/models', { headers: buildAuthHeaders(apiKey) });
+      if (res.ok) {
+        const payload = await res.json();
+        const rows = Array.isArray(payload?.data) ? payload.data : [];
+        if (rows.length) {
+          models = rows.map((m) => ({
+            id: m.id,
+            desc: m.display_name || m.id,
+          }));
+          syncedFromApi = true;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[config] failed to sync model list from /v1/models:', e);
+  }
+
+  const descText = syncedFromApi
+    ? `当前共 ${models.length} 个可用模型 ID，与 /v1/models 接口实时同步。点击右侧按钮可复制模型 ID。`
+    : `当前仅保留已实测支持的 ${models.length} 个模型 ID。点击右侧按钮可复制模型 ID。`;
 
   const card = document.createElement('div');
   card.className = 'config-section';
@@ -356,7 +422,7 @@ function renderStaticModelsSection(container) {
         可用模型
         <a href="https://docs.x.ai/developers/models" target="_blank" rel="noopener" class="text-sm font-normal text-[var(--accents-5)] hover:text-[var(--accents-3)] underline">官方文档 ↗</a>
       </div>
-      <p class="config-field-desc mt-1">当前 Grok2API 中可直接使用的模型 ID（写死列表，与后端模型表保持同步）。点击右侧按钮可复制模型 ID。</p>
+      <p class="config-field-desc mt-1">${descText}</p>
     </div>
   `;
   card.appendChild(header);
@@ -364,7 +430,7 @@ function renderStaticModelsSection(container) {
   const list = document.createElement('div');
   list.className = 'space-y-1 text-sm';
 
-  STATIC_MODELS.forEach(m => {
+  models.forEach(m => {
     const row = document.createElement('div');
     row.className = 'flex items-center justify-between gap-2 py-1 px-2 rounded hover:bg-[var(--accents-1)]';
 
@@ -427,6 +493,11 @@ async function saveConfig() {
       const k = input.dataset.key;
       let val = input.value;
 
+      // 密钥字段：留空表示不修改，跳过以免清空或回写占位符
+      if (input.dataset.secret === '1' && val.trim() === '') {
+        return;
+      }
+
       if (input.type === 'checkbox') {
         val = input.checked;
       } else if (input.dataset.type === 'json') {
@@ -480,7 +551,7 @@ async function saveConfig() {
 async function showAvailableModels() {
   const container = document.getElementById('config-container');
   if (!container) return;
-  renderStaticModelsSection(container);
+  await renderStaticModelsSection(container);
   const card = document.getElementById('available-models');
   if (card) {
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });

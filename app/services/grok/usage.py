@@ -2,7 +2,6 @@
 Grok 用量服务
 """
 
-import asyncio
 import uuid
 from typing import Dict
 
@@ -12,29 +11,51 @@ from curl_cffi.requests import AsyncSession
 from app.core.logger import logger
 from app.core.config import get_config
 from app.core.exceptions import UpstreamException, AppException
+from app.core.constants import BROWSER_IMPERSONATE
+from app.core.concurrency import get_dynamic_semaphore
 from app.services.grok.statsig import StatsigService
+from app.services.grok.cookies import build_grok_cookie
 from app.services.grok.retry import retry_on_status
 
 
 LIMITS_API = "https://grok.com/rest/rate-limits"
-BROWSER = "chrome136"
 TIMEOUT = 10
-DEFAULT_MAX_CONCURRENT = 25
-_USAGE_SEMAPHORE = asyncio.Semaphore(DEFAULT_MAX_CONCURRENT)
-_USAGE_SEM_VALUE = DEFAULT_MAX_CONCURRENT
 
-def _get_usage_semaphore() -> asyncio.Semaphore:
-    global _USAGE_SEMAPHORE, _USAGE_SEM_VALUE
-    value = get_config("performance.usage_max_concurrent", DEFAULT_MAX_CONCURRENT)
-    try:
-        value = int(value)
-    except Exception:
-        value = DEFAULT_MAX_CONCURRENT
-    value = max(1, value)
-    if value != _USAGE_SEM_VALUE:
-        _USAGE_SEM_VALUE = value
-        _USAGE_SEMAPHORE = asyncio.Semaphore(value)
-    return _USAGE_SEMAPHORE
+
+def extract_remaining_quota(result: dict | None, *, bucket: str = "normal") -> int | None:
+    """
+    从 /rest/rate-limits 响应中提取剩余配额。
+
+    兼容旧版 remainingTokens 与新版 remainingQueries 字段。
+    """
+    if not isinstance(result, dict):
+        return None
+
+    legacy = result.get("remainingTokens")
+    if legacy is not None:
+        try:
+            return int(legacy)
+        except Exception:
+            return None
+
+    direct = result.get("remainingQueries")
+    if direct is not None:
+        try:
+            return int(direct)
+        except Exception:
+            return None
+
+    effort_key = "highEffortRateLimits" if bucket == "heavy" else "lowEffortRateLimits"
+    nested = result.get(effort_key)
+    if isinstance(nested, dict):
+        nested_remaining = nested.get("remainingQueries", nested.get("remainingTokens"))
+        if nested_remaining is not None:
+            try:
+                return int(nested_remaining)
+            except Exception:
+                return None
+
+    return None
 
 
 class UsageService:
@@ -74,9 +95,7 @@ class UsageService:
         headers["x-xai-request-id"] = str(uuid.uuid4())
         
         # Cookie
-        token = token[4:] if token.startswith("sso=") else token
-        cf = get_config("grok.cf_clearance", "")
-        headers["Cookie"] = f"sso={token};cf_clearance={cf}" if cf else f"sso={token}"
+        headers["Cookie"] = build_grok_cookie(token)
         
         return headers
     
@@ -98,7 +117,7 @@ class UsageService:
         Raises:
             UpstreamException: 当获取失败且重试耗尽时
         """
-        async with _get_usage_semaphore():
+        async with get_dynamic_semaphore("usage", 25):
             # 定义状态码提取器
             def extract_status(e: Exception) -> int | None:
                 if isinstance(e, UpstreamException) and e.details:
@@ -119,15 +138,17 @@ class UsageService:
                             LIMITS_API,
                             headers=headers,
                             json=payload,
-                            impersonate=BROWSER,
+                            impersonate=BROWSER_IMPERSONATE,
                             timeout=self.timeout,
                             proxies=self._build_proxies()
                         )
                     
                     if response.status_code == 200:
                         data = response.json()
-                        remaining = data.get('remainingTokens', 0)
-                        logger.info(f"Usage: quota {remaining} remaining")
+                        remaining = extract_remaining_quota(data)
+                        logger.info(
+                            f"Usage: quota {remaining if remaining is not None else 'unknown'} remaining"
+                        )
                         return data
                     
                     logger.error(f"Usage failed: {response.status_code}")
@@ -159,4 +180,4 @@ class UsageService:
                 raise
 
 
-__all__ = ["UsageService"]
+__all__ = ["UsageService", "extract_remaining_quota"]

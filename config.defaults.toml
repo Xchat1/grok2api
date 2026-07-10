@@ -20,6 +20,8 @@ app_key = "admin"
 api_key = ""
 image_format = "url"
 video_format = "url"
+cors_allowed_origins = []
+force_password_change = false
 
 [token]
 auto_refresh = true
@@ -33,6 +35,7 @@ nsfw_refresh_retries = 3
 [cache]
 enable_auto_clean = true
 limit_mb = 1024
+cleanup_interval_sec = 300
 keep_base64_cache = true
 
 [performance]

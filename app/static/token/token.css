@@ -1,339 +1,300 @@
-    /* Shared styles moved to common.css */
+/* ===== Token 管理：页面特有样式 - Premium Apple Light Refactoring ===== */
 
-    /* Table Styles */
-    .geist-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      font-size: 13px;
-      /* Unified font size */
-    }
+/* 筛选条卡片化 */
+.token-filter-bar {
+  align-items: flex-start;
+  background: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
 
-    .geist-table th {
-      text-align: center;
-      /* Default center */
-      padding: 0 16px;
-      border-bottom: 1px solid var(--accents-1);
-      color: var(--accents-5);
-      font-weight: 500;
-      height: 40px;
-      /* Reduced height */
-      background: #fff;
-    }
+.filter-group {
+  flex-wrap: wrap;
+}
 
-    .geist-table th.text-left {
-      text-align: left;
-    }
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--accents-5);
+  user-select: none;
+  cursor: pointer;
+}
 
-    .geist-table th.text-right {
-      text-align: right;
-    }
+.filter-chip input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: #1d1d1f;
+  cursor: pointer;
+}
 
-    .geist-table td {
-      padding: 8px 14px;
-      border-bottom: 1px solid #fafafa;
-      background: #fff;
-      vertical-align: middle;
-      height: 44px;
-      color: var(--accents-6);
-      text-align: center;
-      /* Default center */
-      transition: background 0.15s;
-      font-size: 12px;
-    }
+.filter-chip span {
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 3px 10px;
+  transition: all 0.2s ease;
+  background: rgba(0, 0, 0, 0.02);
+}
 
-    .geist-table td.text-left {
-      text-align: left;
-    }
+.filter-chip:hover span {
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.04);
+}
 
-    .geist-table td.text-right {
-      text-align: right;
-    }
+.filter-chip input:checked+span {
+  border-color: #1d1d1f;
+  color: #000000;
+  background: rgba(0, 0, 0, 0.06);
+  font-weight: 500;
+}
 
-    .geist-table tr:last-child td {
-      border-bottom: none;
-    }
+/* 悬浮批量操作条 */
+#batch-actions {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-lg);
+  border-radius: 999px;
+  padding: 8px 14px !important;
+}
 
-    .geist-table tr:hover td {
-      background: #fafafa;
-    }
+#batch-actions .geist-button-outline:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.15);
+}
 
-    .geist-table tr.row-selected td {
-      background: #f6f7f9;
-    }
+/* 确认对话框 */
+.confirm-dialog-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-    .geist-table tr.row-selected:hover td {
-      background: #f0f2f5;
-    }
+.confirm-dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
 
-    /* Elegant Badges */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 0 8px;
-      height: 20px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 500;
-      line-height: 20px;
-      white-space: nowrap;
-    }
+.confirm-dialog-message {
+  font-size: 13px;
+  color: var(--accents-5);
+  line-height: 1.5;
+}
 
-    .badge-gray {
-      background: #f3f4f6;
-      color: #4b5563;
-    }
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
 
-    .badge-green {
-      background: #ecfdf5;
-      color: #059669;
-    }
+.confirm-dialog .modal-content {
+  padding: 0;
+}
 
-    .badge-orange {
-      background: #fff7ed;
-      color: #d97706;
-    }
+/* 弹窗内的 Tab */
+.tab-header {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+}
 
-    .badge-red {
-      background: #fef2f2;
-      color: #dc2626;
-    }
+.tab-btn {
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--accents-5);
+  transition: all 0.2s;
+  cursor: pointer;
+}
 
-    .checkbox {
-      width: 12px;
-      height: 12px;
-      border-radius: 4px;
-      border: 1px solid var(--accents-3);
-      appearance: none;
-      cursor: pointer;
-      position: relative;
-      background: #fff;
-      transition: all 0.2s;
-      margin: 0 auto;
-      /* Center in cell */
-      display: block;
-    }
+.tab-btn:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  color: var(--fg);
+}
 
-    .checkbox:checked {
-      background-color: #000;
-      border-color: #000;
-    }
+.tab-btn.active {
+  background: #1d1d1f;
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
 
-    .checkbox:checked::after {
-      content: '';
-      position: absolute;
-      top: 45%;
-      left: 50%;
-      width: 3px;
-      height: 6px;
-      border: solid white;
-      border-width: 0 2px 2px 0;
-      transform: translate(-50%, -60%) rotate(45deg);
-    }
+.tab-panel.hidden {
+  display: none;
+}
 
-    .checkbox:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 2px #000;
-      border-color: #000;
-    }
+@media (max-width: 768px) {
+  #stats-container .stat-card {
+    padding: 12px 12px;
+  }
 
-    /* Custom Scrollbar for Table Wrapper if needed */
-    .table-wrapper {
-      border-radius: 8px;
-      overflow: hidden;
-    }
+  #token-filter-bar {
+    display: grid;
+    gap: 10px;
+  }
 
-    .batch-link {
-      font-size: 12px;
-      color: var(--accents-5);
-      text-decoration: underline;
-      background: transparent;
-      border: none;
-    }
+  #token-filter-bar .filter-group {
+    width: 100%;
+    flex-wrap: wrap;
+  }
 
-    .batch-link:hover {
-      color: #000;
-    }
+  #token-filter-bar .filter-summary {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
 
-    .toolbar-sep {
-      width: 1px;
-      height: 14px;
-      background: var(--border);
-      display: inline-block;
-    }
+  #token-filter-bar .filter-summary .geist-button-outline {
+    width: 100%;
+  }
 
-    .filter-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--accents-6);
-      user-select: none;
-      cursor: pointer;
-    }
+  #batch-actions {
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    transform: none;
+    border-radius: 12px;
+    padding: 10px !important;
+    gap: 10px;
+    flex-wrap: wrap;
+    cursor: default;
+  }
 
-    .filter-chip input {
-      width: 12px;
-      height: 12px;
-      margin: 0;
-      accent-color: #000;
-      cursor: pointer;
-    }
+  #batch-actions .toolbar-sep {
+    display: none;
+  }
 
-    .filter-chip span {
-      border: 1px solid var(--border);
-      border-radius: 9999px;
-      padding: 2px 8px;
-      transition: all 0.15s;
-      background: #fff;
-    }
+  #batch-actions .batch-actions-meta,
+  #batch-actions #batch-progress {
+    width: 100%;
+    justify-content: space-between;
+  }
 
-    .filter-chip input:checked+span {
-      border-color: #000;
-      color: #000;
-      background: #f3f4f6;
-    }
+  #batch-actions .batch-actions-buttons {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
 
-    .token-filter-bar {
-      align-items: flex-start;
-    }
+  #batch-actions .batch-actions-buttons button {
+    width: 100%;
+  }
 
-    #batch-actions {
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid var(--border);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    }
+  #batch-actions #batch-progress {
+    order: 3;
+    align-items: center;
+    flex-wrap: wrap;
+  }
 
-    #batch-actions .geist-button-outline:hover {
-      background: #f3f4f6;
-    }
+  #batch-actions #batch-progress .toolbar-sep {
+    display: none;
+  }
+}
 
-    .confirm-dialog-body {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+/* ===== 分页栏 ===== */
+.token-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
 
-    .confirm-dialog-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--accents-7);
-    }
+.pagination-info {
+  font-size: 12px;
+  color: var(--accents-4);
+  white-space: nowrap;
+}
 
-    .confirm-dialog-message {
-      font-size: 13px;
-      color: var(--accents-5);
-      line-height: 1.5;
-    }
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 
-    .confirm-dialog-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      padding-top: 8px;
-      border-top: 1px solid var(--border);
-    }
+.pagination-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--accents-5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
 
-    .confirm-dialog .modal-content {
-      padding: 0;
-    }
+.pagination-btn:hover:not(:disabled):not(.active) {
+  border-color: rgba(0, 0, 0, 0.15);
+  color: var(--fg);
+  background: rgba(0, 0, 0, 0.04);
+}
 
-    .tab-header {
-      display: flex;
-      gap: 8px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
-      margin-bottom: 12px;
-    }
+.pagination-btn.active {
+  background: #1d1d1f;
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
 
-    .tab-btn {
-      font-size: 12px;
-      padding: 6px 10px;
-      border-radius: 9999px;
-      border: 1px solid var(--border);
-      background: #fff;
-      color: var(--accents-6);
-      transition: all 0.15s;
-    }
+.pagination-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
 
-    .tab-btn.active {
-      background: #000;
-      color: #fff;
-      border-color: #000;
-    }
+.pagination-ellipsis {
+  min-width: 20px;
+  text-align: center;
+  color: var(--accents-4);
+  font-size: 13px;
+}
 
-    .tab-panel.hidden {
-      display: none;
-    }
+.pagination-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--accents-4);
+}
 
-    @media (max-width: 768px) {
-      #stats-container .stat-card {
-        padding: 12px 12px;
-      }
+.pagination-size select {
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--accents-5);
+  font-size: 12px;
+  padding: 0 6px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
 
-      #token-filter-bar {
-        display: grid;
-        gap: 10px;
-      }
-
-      #token-filter-bar .filter-group {
-        width: 100%;
-        flex-wrap: wrap;
-      }
-
-      #token-filter-bar .filter-summary {
-        width: 100%;
-        margin-left: 0;
-        justify-content: space-between;
-        flex-wrap: wrap;
-      }
-
-      #token-filter-bar .filter-summary .geist-button-outline {
-        width: 100%;
-      }
-
-      #batch-actions {
-        left: 12px;
-        right: 12px;
-        bottom: 10px;
-        transform: none;
-        border-radius: 12px;
-        padding: 10px;
-        gap: 10px;
-        flex-wrap: wrap;
-        cursor: default;
-      }
-
-      #batch-actions .toolbar-sep {
-        display: none;
-      }
-
-      #batch-actions .batch-actions-meta,
-      #batch-actions #batch-progress {
-        width: 100%;
-        justify-content: space-between;
-      }
-
-      #batch-actions .batch-actions-buttons {
-        width: 100%;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-      }
-
-      #batch-actions .batch-actions-buttons button {
-        width: 100%;
-      }
-
-      #batch-actions #batch-progress {
-        order: 3;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-
-      #batch-actions #batch-progress .toolbar-sep {
-        display: none;
-      }
-    }
+.pagination-size select:focus {
+  border-color: #0066cc;
+  box-shadow: 0 0 0 3px var(--ring);
+}

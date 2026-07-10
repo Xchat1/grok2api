@@ -430,3 +430,8 @@ class ApiKeyManager:
 
 # 全局实例
 api_key_manager = ApiKeyManager()
+
+
+def get_api_key_manager() -> ApiKeyManager:
+    """获取 ApiKeyManager 单例（__new__ 已保证唯一）。"""
+    return ApiKeyManager()

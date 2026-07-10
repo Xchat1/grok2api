@@ -20,8 +20,9 @@ from curl_cffi.requests import AsyncSession
 from app.core.config import get_config
 from app.core.exceptions import UpstreamException
 from app.core.logger import logger
+from app.core.constants import GROK_CHAT_API, BROWSER_IMPERSONATE, now_ms
 from app.services.grok.assets import DownloadService
-from app.services.grok.chat import BROWSER, CHAT_API, ChatRequestBuilder
+from app.services.grok.headers import build_grok_headers
 
 
 IMAGE_METHOD_LEGACY = "legacy"
@@ -77,10 +78,7 @@ class ImagineExperimentalService:
         return {"http": self.proxy, "https": self.proxy} if self.proxy else None
 
     def _headers(self, token: str, referer: str = "https://grok.com/imagine") -> Dict[str, str]:
-        headers = ChatRequestBuilder.build_headers(token)
-        headers["Referer"] = referer
-        headers["Origin"] = "https://grok.com"
-        return headers
+        return build_grok_headers(token, referer=referer, origin="https://grok.com")
 
     @staticmethod
     def _build_ws_payload(
@@ -90,7 +88,7 @@ class ImagineExperimentalService:
     ) -> Dict[str, Any]:
         return {
             "type": "conversation.item.create",
-            "timestamp": int(time.time() * 1000),
+            "timestamp": now_ms(),
             "item": {
                 "type": "message",
                 "content": [
@@ -164,7 +162,7 @@ class ImagineExperimentalService:
             aspect_ratio=aspect_ratio,
         )
 
-        session = AsyncSession(impersonate=BROWSER)
+        session = AsyncSession(impersonate=BROWSER_IMPERSONATE)
         ws = None
         started_at = time.monotonic()
         image_indices: Dict[str, int] = {}
@@ -176,7 +174,7 @@ class ImagineExperimentalService:
                 headers=self._headers(token),
                 timeout=effective_timeout,
                 proxies=self._proxies(),
-                impersonate=BROWSER,
+                impersonate=BROWSER_IMPERSONATE,
             )
             await ws.send_json(payload)
 
@@ -365,11 +363,11 @@ class ImagineExperimentalService:
 
         last_error: Optional[Exception] = None
         for payload in payloads:
-            session = AsyncSession(impersonate=BROWSER)
+            session = AsyncSession(impersonate=BROWSER_IMPERSONATE)
             response = None
             try:
                 response = await session.post(
-                    CHAT_API,
+                    GROK_CHAT_API,
                     headers=headers,
                     data=orjson.dumps(payload),
                     timeout=timeout,

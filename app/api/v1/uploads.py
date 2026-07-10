@@ -8,8 +8,6 @@ from pathlib import Path
 import aiofiles
 from fastapi import APIRouter, UploadFile, File, HTTPException
 
-from app.services.grok.assets import DownloadService
-
 
 router = APIRouter(tags=["Uploads"])
 
@@ -49,14 +47,8 @@ async def upload_image(file: UploadFile = File(...)):
             size += len(chunk)
             await f.write(chunk)
 
-    # Best-effort: reuse existing cache cleanup policy (size-based).
-    try:
-        dl = DownloadService()
-        await dl.check_limit()
-        await dl.close()
-    except Exception:
-        pass
-
+    # 缓存限额清理由周期性定时任务统一处理（见 start_cache_cleanup），
+    # 不在请求路径上同步执行，避免阻塞上传。
     return {"url": f"/v1/files/image/{name}", "name": name, "size_bytes": size}
 
 

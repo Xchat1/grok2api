@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import type { Env } from "../env";
 import { requireApiAuth } from "../auth";
 import { getSettings, normalizeCfCookie } from "../settings";
-import { isValidModel, MODEL_CONFIG } from "../grok/models";
+import { isValidModel, MODEL_CONFIG, getModelInfo } from "../grok/models";
 import { extractContent, buildConversationPayload, sendConversationRequest } from "../grok/conversation";
 import { uploadImage } from "../grok/upload";
 import { getDynamicHeaders } from "../grok/headers";
@@ -1152,7 +1152,8 @@ openAiRoutes.get("/models", async (c) => {
 openAiRoutes.get("/models/:modelId", async (c) => {
   const modelId = c.req.param("modelId");
   if (!isValidModel(modelId)) return c.json(openAiError(`Model '${modelId}' not found`, "model_not_found"), 404);
-  const cfg = MODEL_CONFIG[modelId]!;
+  const cfg = getModelInfo(modelId);
+  if (!cfg) return c.json(openAiError(`Model '${modelId}' not found`, "model_not_found"), 404);
   const ts = Math.floor(Date.now() / 1000);
   return c.json({
     id: modelId,
@@ -1202,7 +1203,10 @@ openAiRoutes.post("/chat/completions", async (c) => {
       return c.json(openAiError(`Model '${requestedModel}' not supported`, "model_not_supported"), 400);
 
     const settingsBundle = await getSettings(c.env);
-    const cfg = MODEL_CONFIG[requestedModel]!;
+    const cfg = getModelInfo(requestedModel);
+    if (!cfg) {
+      return c.json(openAiError(`Model '${requestedModel}' not supported`, "model_not_supported"), 400);
+    }
 
     const retryCodes = Array.isArray(settingsBundle.grok.retry_status_codes)
       ? settingsBundle.grok.retry_status_codes

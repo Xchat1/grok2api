@@ -1,0 +1,278 @@
+/* 接口文档模块自定义样式 - Premium Apple Light Refactoring */
+
+/* Tabs 切换效果 */
+.tab-btn {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  outline: none;
+}
+.tab-btn.active {
+  color: var(--fg);
+  border-color: #1d1d1f;
+  font-weight: 600;
+}
+.tab-btn:not(.active) {
+  border-color: transparent;
+}
+
+/* 客户端卡片样式 */
+.client-card {
+  background: var(--card-bg) !important;
+  border-color: var(--card-border) !important;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.client-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--card-border-strong) !important;
+  box-shadow: var(--shadow-md);
+}
+
+/* 复制按钮样式 */
+.copy-btn {
+  transition: transform 0.1s, color 0.2s;
+  cursor: pointer;
+}
+.copy-btn:active {
+  transform: scale(0.95);
+}
+
+/* 代码区域样式 */
+#code-block-content {
+  max-height: 480px;
+  background-color: #1e1e24 !important;
+  color: #e4e4e7 !important;
+  border: 1px solid var(--border);
+}
+
+/* Swagger UI 极简扁平化样式覆盖，匹配 Apple 风格 */
+.swagger-ui {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
+  color: var(--fg) !important;
+}
+
+.swagger-ui .info {
+  margin: 25px 0 !important;
+  padding: 0 20px !important;
+}
+
+.swagger-ui .info .title {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  color: var(--fg) !important;
+  letter-spacing: -0.018em;
+}
+
+.swagger-ui .info p,
+.swagger-ui .info li,
+.swagger-ui .info table {
+  font-size: 0.875rem !important;
+  color: var(--accents-5) !important;
+}
+
+.swagger-ui .scheme-container {
+  background: rgba(255, 255, 255, 0.75) !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 15px 20px !important;
+  backdrop-filter: blur(20px);
+}
+
+/* 隐藏不必要的 Swagger Elements (如右上角 URL 输入栏等) */
+.swagger-ui .topbar {
+  display: none !important;
+}
+
+/* 分组与路由模块外观 */
+.swagger-ui .opblock-tag-section {
+  padding: 0 10px !important;
+}
+
+.swagger-ui .opblock-tag {
+  border-bottom: 1px solid var(--border) !important;
+  padding: 15px 10px 10px 10px !important;
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  color: var(--fg) !important;
+}
+
+.swagger-ui .opblock {
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-sm) !important;
+  margin-bottom: 12px !important;
+  border: 1px solid var(--border) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+  overflow: hidden;
+}
+
+.swagger-ui .opblock .opblock-summary {
+  border-bottom: 1px solid var(--border) !important;
+}
+
+/* 覆盖各请求方法色调 */
+.swagger-ui .opblock.opblock-post {
+  border-color: rgba(52, 199, 89, 0.25) !important;
+  background: rgba(52, 199, 89, 0.02) !important;
+}
+.swagger-ui .opblock.opblock-post .opblock-summary {
+  border-color: rgba(52, 199, 89, 0.15) !important;
+}
+.swagger-ui .opblock.opblock-post .opblock-summary-method {
+  background: #34c759 !important;
+  border-radius: 5px !important;
+  font-weight: 600 !important;
+}
+
+.swagger-ui .opblock.opblock-get {
+  border-color: rgba(0, 102, 204, 0.2) !important;
+  background: rgba(0, 102, 204, 0.02) !important;
+}
+.swagger-ui .opblock.opblock-get .opblock-summary {
+  border-color: rgba(0, 102, 204, 0.15) !important;
+}
+.swagger-ui .opblock.opblock-get .opblock-summary-method {
+  background: #0066cc !important;
+  border-radius: 5px !important;
+  font-weight: 600 !important;
+}
+
+/* 表单输入与按钮 */
+.swagger-ui input[type=text],
+.swagger-ui select,
+.swagger-ui textarea {
+  border: 1px solid #d2d2d7 !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  font-size: 0.8125rem !important;
+  outline: none !important;
+  background: #ffffff !important;
+  color: var(--fg) !important;
+}
+
+.swagger-ui input[type=text]:focus,
+.swagger-ui select:focus {
+  border-color: #0066cc !important;
+  box-shadow: 0 0 0 2px var(--ring) !important;
+}
+
+.swagger-ui .btn {
+  border-radius: 6px !important;
+  border: 1px solid #d2d2d7 !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  padding: 5px 12px !important;
+  box-shadow: none !important;
+  transition: all 0.15s ease;
+  background: #ffffff !important;
+  color: var(--fg) !important;
+}
+
+.swagger-ui .btn:hover {
+  background: #f5f5f7 !important;
+  border-color: #86868b !important;
+}
+
+.swagger-ui .btn.execute {
+  background: #1d1d1f !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+}
+.swagger-ui .btn.execute:hover {
+  background: #000000 !important;
+}
+
+.swagger-ui .btn.cancel {
+  background: #ff3b30 !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+.swagger-ui .tabli button {
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  color: var(--accents-4) !important;
+}
+
+.swagger-ui .tabli.active button {
+  color: var(--fg) !important;
+}
+
+.swagger-ui .opblock-body pre.microlight {
+  background: #1e1e24 !important;
+  border-radius: 8px !important;
+  padding: 15px !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.swagger-ui .opblock-body pre.microlight code {
+  color: #e4e4e7 !important;
+  font-family: 'SF Mono', monospace !important;
+}
+
+.swagger-ui .table-container {
+  padding: 10px 20px !important;
+}
+
+.swagger-ui table.model {
+  font-size: 0.8125rem !important;
+  color: var(--accents-5) !important;
+}
+
+.swagger-ui .model-box {
+  background: #f5f5f7 !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 6px !important;
+  padding: 10px !important;
+}
+
+.swagger-ui .parameters-col_name {
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  color: var(--fg) !important;
+}
+
+.swagger-ui .parameter__type {
+  font-family: 'SF Mono', monospace !important;
+  font-size: 0.75rem !important;
+  color: var(--accents-4) !important;
+}
+
+.swagger-ui .response-col_status {
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  color: var(--fg) !important;
+}
+
+.swagger-ui td {
+  color: var(--accents-5) !important;
+}
+
+.swagger-ui .prop-type {
+  color: #0066cc !important;
+}
+
+.swagger-ui .prop-format {
+  color: var(--accents-4) !important;
+}
+
+.swagger-ui .model-title {
+  color: var(--accents-6) !important;
+}
+
+.swagger-ui section.models {
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+
+.swagger-ui section.models h4 {
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--accents-5) !important;
+}
+
+.swagger-ui section.models .model-container {
+  background: transparent !important;
+}

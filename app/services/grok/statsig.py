@@ -30,15 +30,15 @@ class StatsigService:
         dynamic = get_config("grok.dynamic_statsig", True)
         
         if not dynamic:
-            return "ZTpUeXBlRXJyb3I6IENhbm5vdCByZWFkIHByb3BlcnRpZXMgb2YgdW5kZWZpbmVkIChyZWFkaW5nICdjaGlsZE5vZGVzJyk="
+            return "eDE6VHlwZUVycm9yOiBDYW5ub3QgcmVhZCBwcm9wZXJ0aWVzIG9mIHVuZGVmaW5lZCAocmVhZGluZyAnY2hpbGROb2Rlcycp"
         
-        # 随机格式
+        # 随机格式（与 Grok 网页端 fetch 拦截器 fallback 一致，前缀为 x1:）
         if random.choice([True, False]):
             rand = StatsigService._rand(5, alphanumeric=True)
-            message = f"e:TypeError: Cannot read properties of null (reading 'children['{rand}']')"
+            message = f"x1:TypeError: Cannot read properties of null (reading 'children['{rand}']')"
         else:
             rand = StatsigService._rand(10)
-            message = f"e:TypeError: Cannot read properties of undefined (reading '{rand}')"
+            message = f"x1:TypeError: Cannot read properties of undefined (reading '{rand}')"
         
         return base64.b64encode(message.encode()).decode()
 

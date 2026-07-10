@@ -5,10 +5,17 @@ Grok 模型管理服务
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional, Tuple
+from typing import FrozenSet, Optional, Tuple
+
 from pydantic import BaseModel, Field
 
 from app.core.exceptions import ValidationException
+from app.services.grok.model_catalog import (
+    MODEL_SPECS,
+    coding_model_ids,
+    display_name,
+    model_ids,
+)
 
 
 class Tier(str, Enum):
@@ -38,170 +45,85 @@ class ModelInfo(BaseModel):
     is_image_edit: bool = False
 
 
-class ModelService:
-    """模型管理服务：仅支持源头原始 ID，无别名映射。"""
+def _spec_to_model(spec) -> ModelInfo:
+    return ModelInfo(
+        model_id=spec.model_id,
+        grok_model=spec.model_id,
+        rate_limit_model=spec.model_id,
+        model_mode="MODEL_MODE_FAST",
+        tier=Tier.BASIC,
+        cost=Cost.HIGH if spec.cost == "high" else Cost.LOW,
+        display_name=display_name(spec.model_id),
+        description=spec.description or display_name(spec.model_id),
+        is_image=spec.is_image,
+        is_video=spec.is_video,
+    )
 
-    MODELS = [
-        ModelInfo(
-            model_id="grok-3",
-            grok_model="grok-3",
-            rate_limit_model="grok-3",
-            model_mode="MODEL_MODE_GROK_3",
-            cost=Cost.LOW,
-            display_name="Grok 3",
-        ),
-        ModelInfo(
-            model_id="grok-3-mini",
-            grok_model="grok-3-mini",
-            rate_limit_model="grok-3-mini",
-            model_mode="MODEL_MODE_GROK_3_MINI_THINKING",
-            cost=Cost.LOW,
-            display_name="Grok 3 Mini",
-        ),
-        ModelInfo(
-            model_id="grok-4.20-multi-agent-beta-0309",
-            grok_model="grok-4.20-multi-agent-beta-0309",
-            rate_limit_model="grok-4.20-multi-agent-beta-0309",
-            model_mode="MODEL_MODE_GROK_420",
-            cost=Cost.HIGH,
-            display_name="Grok 4.20 Multi-Agent Beta 0309",
-        ),
-        ModelInfo(
-            model_id="grok-4.20-beta-0309-reasoning",
-            grok_model="grok-4.20-beta-0309-reasoning",
-            rate_limit_model="grok-4.20-beta-0309-reasoning",
-            model_mode="MODEL_MODE_GROK_420",
-            cost=Cost.HIGH,
-            display_name="Grok 4.20 Beta 0309 Reasoning",
-        ),
-        ModelInfo(
-            model_id="grok-4.20-beta-0309-non-reasoning",
-            grok_model="grok-4.20-beta-0309-non-reasoning",
-            rate_limit_model="grok-4.20-beta-0309-non-reasoning",
-            model_mode="MODEL_MODE_GROK_420",
-            cost=Cost.LOW,
-            display_name="Grok 4.20 Beta 0309 Non-Reasoning",
-        ),
-        ModelInfo(
-            model_id="grok-code-fast-1",
-            grok_model="grok-code-fast-1",
-            rate_limit_model="grok-code-fast-1",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.LOW,
-            display_name="Grok Code Fast 1",
-        ),
-        ModelInfo(
-            model_id="grok-4-fast-reasoning",
-            grok_model="grok-4-fast-reasoning",
-            rate_limit_model="grok-4-fast-reasoning",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.LOW,
-            display_name="Grok 4 Fast Reasoning",
-        ),
-        ModelInfo(
-            model_id="grok-4-fast-non-reasoning",
-            grok_model="grok-4-fast-non-reasoning",
-            rate_limit_model="grok-4-fast-non-reasoning",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.LOW,
-            display_name="Grok 4 Fast Non-Reasoning",
-        ),
-        ModelInfo(
-            model_id="grok-4-1-fast-reasoning",
-            grok_model="grok-4-1-fast-reasoning",
-            rate_limit_model="grok-4-1-fast-reasoning",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.LOW,
-            display_name="Grok 4.1 Fast Reasoning",
-        ),
-        ModelInfo(
-            model_id="grok-4-1-fast-non-reasoningeu-west-1",
-            grok_model="grok-4-1-fast-non-reasoningeu-west-1",
-            rate_limit_model="grok-4-1-fast-non-reasoningeu-west-1",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.LOW,
-            display_name="Grok 4.1 Fast Non-Reasoning EU West 1",
-        ),
-        ModelInfo(
-            model_id="grok-4-1-fast-non-reasoningus-east-4",
-            grok_model="grok-4-1-fast-non-reasoningus-east-4",
-            rate_limit_model="grok-4-1-fast-non-reasoningus-east-4",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.LOW,
-            display_name="Grok 4.1 Fast Non-Reasoning US East 4",
-        ),
-        ModelInfo(
-            model_id="grok-4-0709",
-            grok_model="grok-4-0709",
-            rate_limit_model="grok-4-0709",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.LOW,
-            display_name="Grok 4 0709",
-        ),
-        ModelInfo(
-            model_id="grok-imagine-image-pro",
-            grok_model="grok-imagine-image-pro",
-            rate_limit_model="grok-imagine-image-pro",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.HIGH,
-            display_name="Grok Imagine Image Pro",
-            is_image=True,
-        ),
-        ModelInfo(
-            model_id="grok-imagine-image",
-            grok_model="grok-imagine-image",
-            rate_limit_model="grok-imagine-image",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.HIGH,
-            display_name="Grok Imagine Image",
-            is_image=True,
-        ),
-        ModelInfo(
-            model_id="grok-imagine-video",
-            grok_model="grok-imagine-video",
-            rate_limit_model="grok-imagine-video",
-            model_mode="MODEL_MODE_FAST",
-            cost=Cost.HIGH,
-            display_name="Grok Imagine Video",
-            is_video=True,
-        ),
-    ]
-    
+
+def build_models() -> list[ModelInfo]:
+    return [_spec_to_model(spec) for spec in MODEL_SPECS]
+
+
+class ModelService:
+    """模型管理服务：仅支持源头原始 ID，别名通过 resolve_model_id 处理。"""
+
+    GPT55_ALIAS = "gpt-5.5"
+    GPT55_CODING_MODEL = "grok-code-fast-1"
+    GPT55_GENERAL_MODEL = "grok-4.5"
+
+    CODING_MODEL_IDS: FrozenSet[str] = coding_model_ids()
+
+    MODELS = build_models()
     _map = {m.model_id: m for m in MODELS}
-    
+    _catalog_ids = model_ids()
+
     @classmethod
-    def get(cls, model_id: str) -> Optional[ModelInfo]:
+    def resolve_gpt55(cls, *, has_tools: bool = False) -> str:
+        """Pick the best Grok backend for Codex gpt-5.5 requests."""
+        return cls.GPT55_CODING_MODEL if has_tools else cls.GPT55_GENERAL_MODEL
+
+    @classmethod
+    def resolve_model_id(cls, model_id: str, *, has_tools: bool = False) -> str:
+        """Resolve client-facing model aliases to upstream Grok model ids."""
+        if model_id == cls.GPT55_ALIAS:
+            return cls.resolve_gpt55(has_tools=has_tools)
+        return model_id
+
+    @classmethod
+    def is_coding_model(cls, model_id: str) -> bool:
+        """Whether upstream chat payload should disable image generation."""
+        return cls.resolve_model_id(model_id) in cls.CODING_MODEL_IDS
+
+    @classmethod
+    def get(cls, model_id: str, *, has_tools: bool = False) -> Optional[ModelInfo]:
         """获取模型信息"""
-        return cls._map.get(model_id)
-    
+        return cls._map.get(cls.resolve_model_id(model_id, has_tools=has_tools))
+
     @classmethod
     def list(cls) -> list[ModelInfo]:
         """获取所有模型"""
         return list(cls._map.values())
-    
+
     @classmethod
     def valid(cls, model_id: str) -> bool:
         """模型是否有效"""
+        if model_id == cls.GPT55_ALIAS:
+            return True
         return model_id in cls._map
 
     @classmethod
-    def to_grok(cls, model_id: str) -> Tuple[str, str]:
+    def to_grok(cls, model_id: str, *, has_tools: bool = False) -> Tuple[str, str]:
         """转换为 Grok 参数"""
-        model = cls.get(model_id)
+        model = cls.get(model_id, has_tools=has_tools)
         if not model:
             raise ValidationException(f"Invalid model ID: {model_id}")
         return model.grok_model, model.model_mode
 
     @classmethod
-    def rate_limit_model_for(cls, model_id: str) -> str:
+    def rate_limit_model_for(cls, model_id: str, *, has_tools: bool = False) -> str:
         """用于 /rest/rate-limits 的 modelName 映射。"""
-        model = cls.get(model_id)
+        model = cls.get(model_id, has_tools=has_tools)
         return model.rate_limit_model if model else model_id
-
-    @classmethod
-    def is_heavy_bucket_model(cls, model_id: str) -> bool:
-        """是否使用 heavy 配额桶（当前无）。"""
-        return False
 
     @classmethod
     def pool_for_model(cls, model_id: str) -> str:
@@ -220,4 +142,4 @@ class ModelService:
         return ["ssoBasic", "ssoSuper"]
 
 
-__all__ = ["ModelService"]
+__all__ = ["ModelService", "ModelInfo", "Tier", "Cost"]

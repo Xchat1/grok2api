@@ -289,7 +289,7 @@ class RedisStorage(BaseStorage):
                 
                 try:
                     val = json_loads(val_str)
-                except:
+                except (ValueError, TypeError):
                     val = val_str
                 config[section][key] = val
             return config
@@ -354,13 +354,13 @@ class RedisStorage(BaseStorage):
                 # 恢复 tags (JSON -> List)
                 if "tags" in t_data:
                     try: t_data["tags"] = json_loads(t_data["tags"])
-                    except: t_data["tags"] = []
-                
+                    except (ValueError, TypeError): t_data["tags"] = []
+
                 # 类型转换 (Redis 返回全 string)
                 for int_field in ["quota", "created_at", "use_count", "fail_count", "last_used_at", "last_fail_at", "last_sync_at"]:
                     if t_data.get(int_field) and t_data[int_field] != "None":
                          try: t_data[int_field] = int(t_data[int_field])
-                         except: pass
+                         except (ValueError, TypeError): pass
                          
                 token_lookup[tid] = t_data
 
@@ -598,7 +598,7 @@ class SQLStorage(BaseStorage):
                     if section not in config: config[section] = {}
                     try:
                         val = json_loads(val_str)
-                    except:
+                    except (ValueError, TypeError):
                         val = val_str
                     config[section][key] = val
                 return config
@@ -649,7 +649,7 @@ class SQLStorage(BaseStorage):
                         else:
                             t_data = data_json
                         pools[pool_name].append(t_data)
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 return pools
         except Exception as e:

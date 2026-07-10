@@ -34,8 +34,8 @@ from app.services.grok.imagine_generation import (
 )
 from app.services.grok.model import ModelService
 from app.services.grok.processor import ImageCollectProcessor, ImageStreamProcessor
-from app.services.quota import enforce_daily_quota
-from app.services.request_stats import request_stats
+from app.services.metrics.quota import enforce_daily_quota
+from app.services.metrics.request_stats import request_stats
 from app.services.token import get_token_manager
 
 
@@ -77,14 +77,6 @@ def validate_generation_request(request: ImageGenerationRequest):
     if model_id not in ("grok-imagine-image", "grok-imagine-image-pro"):
         raise ValidationException(
             message="Image generation requires model `grok-imagine-image` or `grok-imagine-image-pro`.",
-            param="model",
-            code="model_not_supported",
-        )
-
-    model_info = ModelService.get(model_id)
-    if not model_info or not model_info.is_image:
-        raise ValidationException(
-            message=f"The model `{model_id}` is not supported for image generation.",
             param="model",
             code="model_not_supported",
         )
@@ -137,14 +129,6 @@ def validate_edit_request(request: ImageEditRequest, images: List[UploadFile]):
     if model_id != "grok-imagine-image":
         raise ValidationException(
             message="Image edit requires model `grok-imagine-image`.",
-            param="model",
-            code="model_not_supported",
-        )
-
-    model_info = ModelService.get(model_id)
-    if not model_info or not model_info.is_image:
-        raise ValidationException(
-            message=f"The model `{model_id}` is not supported for image edits.",
             param="model",
             code="model_not_supported",
         )

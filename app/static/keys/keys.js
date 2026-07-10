@@ -16,15 +16,6 @@ function q(id) {
   return document.getElementById(id);
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
 function fmtLimit(v) {
   const n = Number(v);
   if (!Number.isFinite(n) || n < 0) return '不限';
@@ -419,7 +410,7 @@ async function loadKeys() {
   setEmptyState(false);
   try {
     const res = await fetch('/api/v1/admin/keys', { headers: buildAuthHeaders(apiKey) });
-    if (res.status === 401) return logout();
+    if (res.status === 401) return handleUnauthorized();
     const payload = await parseJsonSafely(res);
     if (!res.ok || payload?.success !== true) {
       throw new Error(extractErrorMessage(payload, '加载失败'));
@@ -457,7 +448,7 @@ async function submitKeyModal() {
           is_active: isActive,
         }),
       });
-      if (res.status === 401) return logout();
+      if (res.status === 401) return handleUnauthorized();
       const payload = await parseJsonSafely(res);
       if (!res.ok || payload?.success !== true) {
         throw new Error(extractErrorMessage(payload, '创建失败'));
@@ -486,7 +477,7 @@ async function submitKeyModal() {
         limits,
       }),
     });
-    if (res.status === 401) return logout();
+    if (res.status === 401) return handleUnauthorized();
     const payload = await parseJsonSafely(res);
     if (!res.ok || payload?.success !== true) {
       throw new Error(extractErrorMessage(payload, '更新失败'));
@@ -511,9 +502,9 @@ async function deleteKey(row) {
     const res = await fetch('/api/v1/admin/keys/delete', {
       method: 'POST',
       headers: { ...buildAuthHeaders(apiKey), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key }),
+        body: JSON.stringify({ key }),
     });
-    if (res.status === 401) return logout();
+    if (res.status === 401) return handleUnauthorized();
     const payload = await parseJsonSafely(res);
     if (!res.ok || payload?.success !== true) {
       throw new Error(extractErrorMessage(payload, '删除失败'));

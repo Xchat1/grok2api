@@ -2,8 +2,6 @@
 Grok 视频生成服务
 """
 
-import asyncio
-import uuid
 from typing import AsyncGenerator, Optional
 
 import orjson
@@ -11,36 +9,20 @@ from curl_cffi.requests import AsyncSession
 
 from app.core.logger import logger
 from app.core.config import get_config
+from app.core.constants import GROK_CHAT_API, BROWSER_IMPERSONATE
+from app.core.concurrency import get_dynamic_semaphore
 from app.core.exceptions import UpstreamException, AppException, ValidationException, ErrorType
-from app.services.grok.statsig import StatsigService
 from app.services.grok.model import ModelService
+from app.services.grok.headers import build_grok_headers
 from app.services.token import get_token_manager
 from app.services.grok.processor import VideoStreamProcessor, VideoCollectProcessor
-from app.services.request_stats import request_stats
+from app.services.metrics.request_stats import request_stats
 
 # API 端点
 CREATE_POST_API = "https://grok.com/rest/media/post/create"
-CHAT_API = "https://grok.com/rest/app-chat/conversations/new"
 
 # 常量
-BROWSER = "chrome136"
-TIMEOUT = 300
-DEFAULT_MAX_CONCURRENT = 50
-_MEDIA_SEMAPHORE = asyncio.Semaphore(DEFAULT_MAX_CONCURRENT)
-_MEDIA_SEM_VALUE = DEFAULT_MAX_CONCURRENT
-
-def _get_media_semaphore() -> asyncio.Semaphore:
-    global _MEDIA_SEMAPHORE, _MEDIA_SEM_VALUE
-    value = get_config("performance.media_max_concurrent", DEFAULT_MAX_CONCURRENT)
-    try:
-        value = int(value)
-    except Exception:
-        value = DEFAULT_MAX_CONCURRENT
-    value = max(1, value)
-    if value != _MEDIA_SEM_VALUE:
-        _MEDIA_SEM_VALUE = value
-        _MEDIA_SEMAPHORE = asyncio.Semaphore(value)
-    return _MEDIA_SEMAPHORE
+TIMEOUT = 300  # 视频生成默认超时（区别于对话）
 
 
 class VideoService:
@@ -51,40 +33,8 @@ class VideoService:
         self.timeout = get_config("grok.timeout", TIMEOUT)
     
     def _build_headers(self, token: str, referer: str = "https://grok.com/imagine") -> dict:
-        """构建请求头"""
-        headers = {
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate, br, zstd",
-            "Accept-Language": "zh-CN,zh;q=0.9",
-            "Baggage": "sentry-environment=production,sentry-release=d6add6fb0460641fd482d767a335ef72b9b6abb8,sentry-public_key=b311e0f2690c81f25e2c4cf6d4f7ce1c",
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json",
-            "Origin": "https://grok.com",
-            "Pragma": "no-cache",
-            "Priority": "u=1, i",
-            "Referer": referer,
-            "Sec-Ch-Ua": '"Google Chrome";v="136", "Chromium";v="136", "Not(A:Brand";v="24"',
-            "Sec-Ch-Ua-Arch": "arm",
-            "Sec-Ch-Ua-Bitness": "64",
-            "Sec-Ch-Ua-Mobile": "?0",
-            "Sec-Ch-Ua-Model": "",
-            "Sec-Ch-Ua-Platform": '"macOS"',
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-        }
-        
-        # Statsig ID
-        headers["x-statsig-id"] = StatsigService.gen_id()
-        headers["x-xai-request-id"] = str(uuid.uuid4())
-        
-        # Cookie
-        token = token[4:] if token.startswith("sso=") else token
-        cf = get_config("grok.cf_clearance", "")
-        headers["Cookie"] = f"sso={token};cf_clearance={cf}" if cf else f"sso={token}"
-        
-        return headers
+        """构建请求头（委托给统一的 build_grok_headers）。"""
+        return build_grok_headers(token, referer=referer)
     
     def _build_proxies(self) -> Optional[dict]:
         """构建代理"""
@@ -123,7 +73,7 @@ class VideoService:
                     CREATE_POST_API,
                     headers=headers,
                     json=payload,
-                    impersonate=BROWSER,
+                    impersonate=BROWSER_IMPERSONATE,
                     timeout=30,
                     proxies=self._build_proxies()
                 )
@@ -234,7 +184,7 @@ class VideoService:
         Raises:
             UpstreamException: 连接失败时
         """
-        async with _get_media_semaphore():
+        async with get_dynamic_semaphore("media", 50):
             session = None
             try:
                 # Step 1: 创建帖子
@@ -244,9 +194,9 @@ class VideoService:
                 headers = self._build_headers(token)
                 payload = self._build_payload(prompt, post_id, aspect_ratio, video_length, resolution, preset)
                 
-                session = AsyncSession(impersonate=BROWSER)
+                session = AsyncSession(impersonate=BROWSER_IMPERSONATE)
                 response = await session.post(
-                    CHAT_API,
+                    GROK_CHAT_API,
                     headers=headers,
                     data=orjson.dumps(payload),
                     timeout=self.timeout,
@@ -258,7 +208,7 @@ class VideoService:
                     logger.error(f"Video generation failed: {response.status_code}")
                     try:
                         await session.close()
-                    except:
+                    except Exception:
                         pass
                     raise UpstreamException(
                         message=f"Video generation failed: {response.status_code}",
@@ -280,7 +230,7 @@ class VideoService:
                 if session:
                     try:
                         await session.close()
-                    except:
+                    except Exception:
                         pass
                 logger.error(f"Video generation error: {e}")
                 if isinstance(e, AppException):
@@ -314,7 +264,7 @@ class VideoService:
         Returns:
             AsyncGenerator，流式传输
         """
-        async with _get_media_semaphore():
+        async with get_dynamic_semaphore("media", 50):
             session = None
             try:
                 # Step 1: 创建帖子
@@ -324,9 +274,9 @@ class VideoService:
                 headers = self._build_headers(token)
                 payload = self._build_payload(prompt, post_id, aspect_ratio, video_length, resolution, preset)
                 
-                session = AsyncSession(impersonate=BROWSER)
+                session = AsyncSession(impersonate=BROWSER_IMPERSONATE)
                 response = await session.post(
-                    CHAT_API,
+                    GROK_CHAT_API,
                     headers=headers,
                     data=orjson.dumps(payload),
                     timeout=self.timeout,
@@ -338,7 +288,7 @@ class VideoService:
                     logger.error(f"Video from image failed: {response.status_code}")
                     try:
                         await session.close()
-                    except:
+                    except Exception:
                         pass
                     raise UpstreamException(
                         message=f"Video from image failed: {response.status_code}",
@@ -360,7 +310,7 @@ class VideoService:
                 if session:
                     try:
                         await session.close()
-                    except:
+                    except Exception:
                         pass
                 logger.error(f"Video from image error: {e}")
                 if isinstance(e, AppException):

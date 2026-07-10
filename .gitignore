@@ -48,13 +48,31 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 wrangler.ci.toml
+tsconfig.tsbuildinfo
+
+# Local agent skills (not part of the app)
+.agents/
 
 # Logs
 logs/
 *.log
 
-# Data (runtime)
+# Data (runtime) — never commit tokens, keys, or local config
 data/
+data/**/*.bak*
+data/**/*.lost*
+data/**/token.json*
+
+# Secrets & credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+credentials.json
+secrets.json
+**/id_rsa
+**/id_ed25519
 
 # Testing
 .pytest_cache/
@@ -63,6 +81,7 @@ htmlcov/
 
 # Project specific
 config.local.toml
+work.md
 
 # Local tooling
 .ace-tool/

@@ -395,14 +395,31 @@ class Config:
             key: 配置键，格式 "section.key"
             default: 默认值
         """
-        if "." in key:
-            try:
-                section, attr = key.split(".", 1)
-                return self._config.get(section, {}).get(attr, default)
-            except (ValueError, AttributeError):
-                return default
+        self._ensure_defaults()
 
-        return self._config.get(key, default)
+        def _retrieve(d: dict, k: str) -> Any:
+            if "." in k:
+                try:
+                    section, attr = k.split(".", 1)
+                    if isinstance(d.get(section), dict) and attr in d[section]:
+                        return d[section][attr]
+                except (ValueError, AttributeError):
+                    pass
+            elif k in d:
+                return d[k]
+            return None
+
+        # 优先读取当前运行时配置
+        val = _retrieve(self._config, key)
+        if val is not None:
+            return val
+
+        # 兜底读取默认配置
+        val = _retrieve(self._defaults, key)
+        if val is not None:
+            return val
+
+        return default
 
     async def update(self, new_config: dict):
         """更新配置"""

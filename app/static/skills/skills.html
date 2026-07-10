@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grok2API - 技能中心</title>
+  <link rel="icon" href="/static/favicon/favicon.ico">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans/index.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono/index.css" rel="stylesheet">
+  <link href="/static/common/common.css?v=apple" rel="stylesheet">
+  <link href="/static/skills/skills.css?v=apple" rel="stylesheet">
+  <link href="/static/common/toast.css?v=apple" rel="stylesheet">
+</head>
+
+<body class="min-h-screen flex flex-col" style="background-color: var(--bg);">
+
+  <div id="app-header"></div>
+
+  <main class="space-y-6 flex-1 container mx-auto max-w-7xl px-6 py-8 fade-in">
+    <div class="flex flex-wrap justify-between items-start gap-3">
+      <div>
+        <h2 class="text-2xl font-semibold tracking-tight">技能中心</h2>
+        <p class="text-[var(--accents-4)] mt-1 text-sm">
+          按能力维度浏览 Grok2API 提供的全部技能（与当前 25 个模型、Responses API 同步），点击卡片查看接口说明与调用示例。
+        </p>
+      </div>
+      <div class="text-sm text-[var(--accents-4)]" id="skill-count">加载中…</div>
+    </div>
+
+    <div class="h-px bg-[var(--border)] my-6"></div>
+
+    <div id="skill-container"></div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <!-- 技能详情弹窗 -->
+  <div id="skill-modal" class="skill-modal hidden" aria-hidden="true">
+    <div class="skill-modal-overlay" data-close></div>
+    <div class="skill-modal-panel" role="dialog" aria-modal="true">
+      <button type="button" class="skill-modal-close" data-close aria-label="关闭">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <div id="skill-modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/static/common/admin-auth.js?v=apple"></script>
+  <script src="/static/common/header.js?v=apple"></script>
+  <script src="/static/common/footer.js?v=apple"></script>
+  <script src="/static/common/toast.js?v=apple"></script>
+  <script src="/static/common/utils.js?v=apple"></script>
+  <script src="/static/skills/skills.js?v=apple"></script>
+</body>
+
+</html>

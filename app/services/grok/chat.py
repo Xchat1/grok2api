@@ -3,33 +3,26 @@ Grok Chat 服务
 """
 
 import asyncio
-import uuid
-import orjson
 from typing import Dict, List, Any
 from dataclasses import dataclass
-
-from curl_cffi.requests import AsyncSession
 
 from app.core.logger import logger
 from app.core.config import get_config
 from app.core.exceptions import (
-    AppException, 
+    AppException,
     UpstreamException,
     ValidationException,
     ErrorType
 )
-from app.services.grok.statsig import StatsigService
+from app.core.constants import GROK_CHAT_API, DEFAULT_TIMEOUT
 from app.services.grok.model import ModelService
 from app.services.grok.assets import UploadService
+from app.services.grok.headers import build_grok_headers
+from app.services.grok.base_completions import BaseCompletionsService
 from app.services.grok.processor import StreamProcessor, CollectProcessor
 from app.services.grok.retry import retry_on_status
 from app.services.token import get_token_manager
-from app.services.request_stats import request_stats
-
-
-CHAT_API = "https://grok.com/rest/app-chat/conversations/new"
-TIMEOUT = 120
-BROWSER = "chrome136"
+from app.services.metrics.request_stats import request_stats
 
 
 @dataclass
@@ -39,28 +32,67 @@ class ChatRequest:
     messages: List[Dict[str, Any]]
     stream: bool = None
     think: bool = None
+    has_tools: bool = False
 
 
 class MessageExtractor:
     """消息内容提取器"""
-    
+
     # 需要上传的类型
     UPLOAD_TYPES = {"image_url", "input_audio", "file"}
     # 视频模式不支持的类型
     VIDEO_UNSUPPORTED = {"input_audio", "file"}
-    
+
+    @staticmethod
+    def _parse_content_item(item: Dict[str, Any], is_video: bool) -> tuple[List[str], List[tuple]]:
+        """
+        解析单个 list 格式内容项。
+
+        Returns:
+            (text_parts, attachments): 该 item 贡献的文本片段与附件（类型, 数据）。
+        """
+        item_type = item.get("type", "")
+
+        if item_type == "text":
+            text = item.get("text", "")
+            return ([text] if text.strip() else []), []
+
+        if item_type == "image_url":
+            image_data = item.get("image_url", {})
+            url = image_data.get("url", "") if isinstance(image_data, dict) else str(image_data)
+            return [], [("image", url)] if url else []
+
+        if item_type == "input_audio":
+            if is_video:
+                raise ValueError("视频模型不支持 input_audio 类型")
+            audio_data = item.get("input_audio", {})
+            data = audio_data.get("data", "") if isinstance(audio_data, dict) else str(audio_data)
+            return [], [("audio", data)] if data else []
+
+        if item_type == "file":
+            if is_video:
+                raise ValueError("视频模型不支持 file 类型")
+            file_data = item.get("file", {})
+            # file 可能是 URL 或 base64
+            url = file_data.get("url", "") or file_data.get("data", "")
+            if isinstance(file_data, str):
+                url = file_data
+            return [], [("file", url)] if url else []
+
+        return [], []
+
     @staticmethod
     def extract(messages: List[Dict[str, Any]], is_video: bool = False) -> tuple[str, List[str]]:
         """
         从 OpenAI 消息格式提取内容
-        
+
         Args:
             messages: OpenAI 格式消息列表
             is_video: 是否为视频模型
-            
+
         Returns:
             (text, attachments): 拼接后的文本和需要上传的附件列表
-            
+
         Raises:
             ValueError: 视频模型遇到不支持的内容类型
         """
@@ -83,41 +115,9 @@ class MessageExtractor:
             # 列表格式内容
             elif isinstance(content, list):
                 for item in content:
-                    item_type = item.get("type", "")
-
-                    # 文本类型
-                    if item_type == "text":
-                        text = item.get("text", "")
-                        if text.strip():
-                            parts.append(text)
-
-                    # 图片类型
-                    elif item_type == "image_url":
-                        image_data = item.get("image_url", {})
-                        url = image_data.get("url", "") if isinstance(image_data, dict) else str(image_data)
-                        if url:
-                            attachments.append(("image", url))
-
-                    # 音频类型
-                    elif item_type == "input_audio":
-                        if is_video:
-                            raise ValueError("视频模型不支持 input_audio 类型")
-                        audio_data = item.get("input_audio", {})
-                        data = audio_data.get("data", "") if isinstance(audio_data, dict) else str(audio_data)
-                        if data:
-                            attachments.append(("audio", data))
-
-                    # 文件类型
-                    elif item_type == "file":
-                        if is_video:
-                            raise ValueError("视频模型不支持 file 类型")
-                        file_data = item.get("file", {})
-                        # file 可能是 URL 或 base64
-                        url = file_data.get("url", "") or file_data.get("data", "")
-                        if isinstance(file_data, str):
-                            url = file_data
-                        if url:
-                            attachments.append(("file", url))
+                    item_texts, item_attachments = MessageExtractor._parse_content_item(item, is_video)
+                    parts.extend(item_texts)
+                    attachments.extend(item_attachments)
 
             if parts:
                 extracted.append({"role": role, "text": "\n".join(parts)})
@@ -140,7 +140,7 @@ class MessageExtractor:
         # 换行拼接文本
         message = "\n\n".join(texts)
         return message, attachments
-    
+
     @staticmethod
     def extract_text_only(messages: List[Dict[str, Any]]) -> str:
         """仅提取文本内容"""
@@ -153,40 +153,8 @@ class ChatRequestBuilder:
     
     @staticmethod
     def build_headers(token: str) -> Dict[str, str]:
-        """构造请求头"""
-        headers = {
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate, br, zstd",
-            "Accept-Language": "zh-CN,zh;q=0.9",
-            "Baggage": "sentry-environment=production,sentry-release=d6add6fb0460641fd482d767a335ef72b9b6abb8,sentry-public_key=b311e0f2690c81f25e2c4cf6d4f7ce1c",
-            "Cache-Control": "no-cache",
-            "Content-Type": "application/json",
-            "Origin": "https://grok.com",
-            "Pragma": "no-cache",
-            "Priority": "u=1, i",
-            "Referer": "https://grok.com/",
-            "Sec-Ch-Ua": '"Google Chrome";v="136", "Chromium";v="136", "Not(A:Brand";v="24"',
-            "Sec-Ch-Ua-Arch": "arm",
-            "Sec-Ch-Ua-Bitness": "64",
-            "Sec-Ch-Ua-Mobile": "?0",
-            "Sec-Ch-Ua-Model": "",
-            "Sec-Ch-Ua-Platform": '"macOS"',
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-        }
-        
-        # Statsig ID
-        headers["x-statsig-id"] = StatsigService.gen_id()
-        headers["x-xai-request-id"] = str(uuid.uuid4())
-        
-        # Cookie
-        token = token[4:] if token.startswith("sso=") else token
-        cf = get_config("grok.cf_clearance", "")
-        headers["Cookie"] = f"sso={token};cf_clearance={cf}" if cf else f"sso={token}"
-        
-        return headers
+        """构造请求头（委托给统一的 build_grok_headers）。"""
+        return build_grok_headers(token)
     
     @staticmethod
     def build_payload(
@@ -212,6 +180,8 @@ class ChatRequestBuilder:
         if think is None:
             think = get_config("grok.thinking", False)
 
+        enable_image_generation = not ModelService.is_coding_model(model)
+
         # Upstream payload expects image attachments merged into fileAttachments.
         merged_attachments: List[str] = []
         if file_attachments:
@@ -227,44 +197,37 @@ class ChatRequestBuilder:
             "fileAttachments": merged_attachments,
             "imageAttachments": [],
             "disableSearch": False,
-            "enableImageGeneration": True,
+            "enableImageGeneration": enable_image_generation,
             "returnImageBytes": False,
             "returnRawGrokInXaiRequest": False,
-            "enableImageStreaming": True,
-            "imageGenerationCount": 2,
+            "enableImageStreaming": enable_image_generation,
+            "imageGenerationCount": 2 if enable_image_generation else 0,
             "forceConcise": False,
             "toolOverrides": {},
             "enableSideBySide": True,
             "sendFinalMetadata": True,
             "isReasoning": False,
-            "disableTextFollowUps": False,
+            "webpageUrls": [],
+            "disableTextFollowUps": True,
             "responseMetadata": {
-                "modelConfigOverride": {"modelMap": {}},
                 "requestModelDetails": {"modelId": model}
             },
             "disableMemory": False,
             "forceSideBySide": False,
             "isAsyncChat": False,
-            "disableSelfHarmShortCircuit": False,
-            "deviceEnvInfo": {
-                "darkModeEnabled": False,
-                "devicePixelRatio": 2,
-                "screenWidth": 2056,
-                "screenHeight": 1329,
-                "viewportWidth": 2056,
-                "viewportHeight": 1083
-            }
         }
 
 
 # ==================== Grok 服务 ====================
 
-class GrokChatService:
+class GrokChatService(BaseCompletionsService):
     """Grok API 调用服务"""
-    
+
+    _log_tag = "Chat"
+
     def __init__(self, proxy: str = None):
-        self.proxy = proxy or get_config("grok.base_proxy_url", "")
-    
+        super().__init__(proxy)
+
     async def chat(
         self,
         token: str,
@@ -278,7 +241,7 @@ class GrokChatService:
     ):
         """
         发送聊天请求
-        
+
         Args:
             token: 认证 Token
             message: 消息文本
@@ -288,117 +251,48 @@ class GrokChatService:
             stream: 是否流式
             file_attachments: 文件附件 ID 列表
             image_attachments: 图片附件 URL 列表
-        
+
+        Returns:
+            一个异步生成器，逐行产出上游 SSE 文本（调用方负责消费/关闭）。
+
         Raises:
             UpstreamException: 当 Grok API 返回错误且重试耗尽时
         """
         if stream is None:
             stream = get_config("grok.stream", True)
-        
-        headers = ChatRequestBuilder.build_headers(token)
+
+        headers = self._build_headers(token)
         payload = ChatRequestBuilder.build_payload(
-            message, model, mode, think, 
+            message, model, mode, think,
             file_attachments, image_attachments
         )
-        proxies = {"http": self.proxy, "https": self.proxy} if self.proxy else None
-        timeout = get_config("grok.timeout", TIMEOUT)
-        
-        # 状态码提取器
-        def extract_status(e: Exception) -> int | None:
-            if isinstance(e, UpstreamException) and e.details:
-                return e.details.get("status")
-            return None
-        
-        # 建立连接函数
-        async def establish_connection():
-            """建立连接并返回 response 对象"""
-            session = AsyncSession(impersonate=BROWSER)
-            try:
-                response = await session.post(
-                    CHAT_API,
-                    headers=headers,
-                    data=orjson.dumps(payload),
-                    timeout=timeout,
-                    stream=True,
-                    proxies=proxies
-                )
-                
-                if response.status_code != 200:
-                    try:
-                        content = await response.text()
-                        content = content[:1000] # 限制长度避免日志过大
-                    except:
-                        content = "Unable to read response content"
+        timeout = get_config("grok.timeout", DEFAULT_TIMEOUT)
 
-                    logger.error(
-                        f"Chat failed: {response.status_code}, {content}",
-                        extra={"status": response.status_code, "token": token[:10] + "..."}
-                    )
-                    # 关闭 session 并抛出异常
-                    try:
-                        await session.close()
-                    except:
-                        pass
-                    raise UpstreamException(
-                        message=f"Grok API request failed: {response.status_code}",
-                        details={"status": response.status_code}
-                    )
-                
-                # 返回 session 和 response
-                return session, response
-                
-            except UpstreamException:
-                # 已经处理过的异常，直接抛出
-                raise
-            except Exception as e:
-                # 其他异常，关闭 session 并包装
-                logger.error(f"Chat request error: {e}")
-                try:
-                    await session.close()
-                except:
-                    pass
-                raise UpstreamException(
-                    message=f"Chat connection failed: {str(e)}",
-                    details={"error": str(e)}
-                )
-        
-        # 建立连接
         session = None
         response = None
         try:
             session, response = await retry_on_status(
-                establish_connection,
-                extract_status=extract_status
+                self._establish_connection,
+                token, headers, payload, GROK_CHAT_API, timeout,
+                extract_status=self._extract_status,
             )
         except Exception as e:
             # 记录失败
-            status_code = extract_status(e)
+            status_code = self._extract_status(e)
             if status_code:
                 token_mgr = await get_token_manager()
                 await token_mgr.record_fail(token, status_code, str(e))
             raise
-        
-        # 流式传输
-        async def stream_response():
-            try:
-                async for line in response.aiter_lines():
-                    yield line
-            finally:
-                if session:
-                    await session.close()
-        
-        return stream_response()
+
+        return self._wrap_stream(session, response)
     
     async def chat_openai(self, token: str, request: ChatRequest):
         """OpenAI 兼容接口"""
-        model_info = ModelService.get(request.model)
-        if not model_info:
-            raise ValidationException(f"Unknown model: {request.model}")
-        
-        grok_model = model_info.grok_model
-        mode = model_info.model_mode
-        is_video = model_info.is_video
-        
+        routing = resolve_routing(request.model, has_tools=request.has_tools)
+        grok_model = routing.model_id
+        mode = routing.model_mode
+        is_video = routing.is_video
+
         # 提取消息和附件
         try:
             message, attachments = MessageExtractor.extract(request.messages, is_video=is_video)
@@ -449,7 +343,8 @@ class ChatService:
         model: str,
         messages: List[Dict[str, Any]],
         stream: bool = None,
-        thinking: str = None
+        thinking: str = None,
+        has_tools: bool = False,
     ):
         """
         Chat Completions 入口
@@ -506,7 +401,8 @@ class ChatService:
             model=model,
             messages=messages,
             stream=is_stream,
-            think=think
+            think=think,
+            has_tools=has_tools,
         )
         
         # 请求 Grok

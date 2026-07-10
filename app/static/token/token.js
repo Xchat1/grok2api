@@ -16,6 +16,8 @@ let isWorkersRuntime = false;
 let isNsfwRefreshAllRunning = false;
 
 let displayTokens = [];
+let currentPage = 1;
+let pageSize = 20;
 const filterState = {
   typeSso: false,
   typeSuperSso: false,
@@ -24,9 +26,42 @@ const filterState = {
   statusExhausted: false,
 };
 
+function cloneFlatTokensSnapshot() {
+  return JSON.parse(JSON.stringify(flatTokens || []));
+}
+
 function normalizeSsoToken(token) {
-  const v = String(token || '').trim();
-  return v.startsWith('sso=') ? v.slice(4).trim() : v;
+  let raw = String(token || '').trim();
+  if (!raw) return '';
+
+  if (raw.toLowerCase().startsWith('cookie:')) {
+    raw = raw.slice(7).trim();
+  }
+
+  if (raw.includes(';')) {
+    let ssoVal = null;
+    let ssoRwVal = null;
+    const parts = raw.split(';');
+    for (let part of parts) {
+      part = part.trim();
+      if (part.startsWith('sso=')) {
+        ssoVal = part.slice(4).trim();
+      } else if (part.startsWith('sso-rw=')) {
+        ssoRwVal = part.slice(7).trim();
+      }
+    }
+    const extracted = ssoVal || ssoRwVal;
+    if (extracted) return extracted;
+  }
+
+  if (raw.startsWith('sso=')) {
+    return raw.slice(4).trim();
+  }
+  if (raw.startsWith('sso-rw=')) {
+    return raw.slice(7).trim();
+  }
+
+  return raw;
 }
 
 function poolToType(pool) {
@@ -162,6 +197,7 @@ function applyFilters() {
 }
 
 function onFilterChange() {
+  currentPage = 1;
   applyFilters();
   renderTable();
 }
@@ -172,6 +208,7 @@ function resetFilters() {
       const el = document.getElementById(id);
       if (el) el.checked = false;
     });
+  currentPage = 1;
   applyFilters();
   renderTable();
 }
@@ -256,7 +293,7 @@ async function refreshStatsOnly() {
       headers: buildAuthHeaders(apiKey)
     });
     if (res.status === 401) {
-      logout();
+      handleUnauthorized();
       return;
     }
     if (!res.ok) return;
@@ -320,10 +357,11 @@ async function loadData() {
       allTokens = data;
       processTokens(data);
       updateStats(data);
+      currentPage = 1;
       applyFilters();
       renderTable();
     } else if (res.status === 401) {
-      logout();
+      handleUnauthorized();
     } else {
       const payload = await parseJsonSafely(res);
       throw new Error(extractApiErrorMessage(payload, `HTTP ${res.status}`));
@@ -405,83 +443,116 @@ function renderTable() {
   if (flatTokens.length === 0) {
     emptyState.innerText = '暂无 Token，请点击右上角导入或添加。';
     emptyState.classList.remove('hidden');
+    renderPagination();
     return;
   }
   if (displayTokens.length === 0) {
     emptyState.innerText = '当前筛选无结果。';
     emptyState.classList.remove('hidden');
     updateSelectionState();
+    renderPagination();
     return;
   }
   emptyState.innerText = '暂无 Token，请点击右上角导入或添加。';
   emptyState.classList.add('hidden');
 
-  displayTokens.forEach((item) => {
+  const totalPages = Math.max(1, Math.ceil(displayTokens.length / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+  const pageItems = displayTokens.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  pageItems.forEach((item) => {
     const tr = document.createElement('tr');
     const tokenKey = getTokenKey(item.token);
-    const tokenEncoded = encodeURIComponent(item.token);
-    const tokenKeyEncoded = encodeURIComponent(tokenKey);
 
     // Checkbox (Center)
     const tdCheck = document.createElement('td');
     tdCheck.className = 'text-center';
-    tdCheck.innerHTML = `<input type="checkbox" class="checkbox" ${item._selected ? 'checked' : ''} onchange="toggleSelectByKey(decodeURIComponent('${tokenKeyEncoded}'))">`;
+    const checkInput = document.createElement('input');
+    checkInput.type = 'checkbox';
+    checkInput.className = 'checkbox';
+    if (item._selected) checkInput.checked = true;
+    checkInput.addEventListener('change', () => toggleSelectByKey(tokenKey));
+    tdCheck.appendChild(checkInput);
 
     // Token (Left)
     const tdToken = document.createElement('td');
     tdToken.className = 'text-left';
+    const tokenWrap = document.createElement('div');
+    tokenWrap.className = 'flex items-center gap-2';
+    const tokenSpan = document.createElement('span');
+    tokenSpan.className = 'font-mono text-xs text-gray-500';
     const tokenShort = item.token.length > 24
       ? item.token.substring(0, 8) + '...' + item.token.substring(item.token.length - 16)
       : item.token;
-    tdToken.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="font-mono text-xs text-gray-500" title="${item.token}">${tokenShort}</span>
-                    <button class="text-gray-400 hover:text-black transition-colors" onclick="copyToClipboard(decodeURIComponent('${tokenEncoded}'), this)">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    </button>
-                </div>
-             `;
+    tokenSpan.textContent = tokenShort;
+    tokenSpan.title = item.token; // 安全：属性赋值，不经 HTML 插值
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'text-gray-400 hover:text-black transition-colors';
+    copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+    copyBtn.addEventListener('click', () => copyToClipboard(item.token, copyBtn));
+    tokenWrap.appendChild(tokenSpan);
+    tokenWrap.appendChild(copyBtn);
+    tdToken.appendChild(tokenWrap);
 
     // Type (Center)
     const tdType = document.createElement('td');
     tdType.className = 'text-center';
-    tdType.innerHTML = `<span class="badge badge-gray">${escapeHtml(item.pool)}</span>`;
+    const typeBadge = document.createElement('span');
+    typeBadge.className = 'badge badge-gray';
+    typeBadge.textContent = item.pool || '';
+    tdType.appendChild(typeBadge);
 
     // Status (Center)
     const tdStatus = document.createElement('td');
+    tdStatus.className = 'text-center';
     let statusClass = 'badge-gray';
     if (isTokenActive(item)) statusClass = 'badge-green';
     else if (isTokenExhausted(item)) statusClass = 'badge-orange';
     else statusClass = 'badge-red';
-    tdStatus.className = 'text-center';
-    tdStatus.innerHTML = `<span class="badge ${statusClass}">${isTokenActive(item) ? 'active' : (isTokenExhausted(item) ? 'exhausted' : 'invalid')}</span>`;
+    const statusBadge = document.createElement('span');
+    statusBadge.className = `badge ${statusClass}`;
+    statusBadge.textContent = isTokenActive(item) ? 'active' : (isTokenExhausted(item) ? 'exhausted' : 'invalid');
+    tdStatus.appendChild(statusBadge);
 
     // Quota (Center)
     const tdQuota = document.createElement('td');
     tdQuota.className = 'text-center font-mono text-xs';
-    tdQuota.innerText = item.quota_known ? String(item.quota) : '-';
+    tdQuota.textContent = item.quota_known ? String(item.quota) : '-';
 
     // Note (Left)
     const tdNote = document.createElement('td');
     tdNote.className = 'text-left text-gray-500 text-xs truncate max-w-[150px]';
-    tdNote.innerText = item.note || '-';
+    tdNote.textContent = item.note || '-';
 
     // Actions (Center)
     const tdActions = document.createElement('td');
     tdActions.className = 'text-center';
-    tdActions.innerHTML = `
-                <div class="flex items-center justify-center gap-2">
-                     <button onclick="refreshStatus(decodeURIComponent('${tokenEncoded}'), this)" class="p-1 text-gray-400 hover:text-black rounded" title="刷新状态">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                     </button>
-                     <button onclick="openEditModalByKey(decodeURIComponent('${tokenKeyEncoded}'))" class="p-1 text-gray-400 hover:text-black rounded" title="编辑">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                     </button>
-                     <button onclick="deleteTokenByKey(decodeURIComponent('${tokenKeyEncoded}'))" class="p-1 text-gray-400 hover:text-red-600 rounded" title="删除">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                     </button>
-                </div>
-             `;
+    const actionsWrap = document.createElement('div');
+    actionsWrap.className = 'flex items-center justify-center gap-2';
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.className = 'p-1 text-gray-400 hover:text-black rounded';
+    refreshBtn.title = '刷新状态';
+    refreshBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>';
+    refreshBtn.addEventListener('click', () => refreshStatus(item.token, refreshBtn));
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'p-1 text-gray-400 hover:text-black rounded';
+    editBtn.title = '编辑';
+    editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+    editBtn.addEventListener('click', () => openEditModalByKey(tokenKey));
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'p-1 text-gray-400 hover:text-red-600 rounded';
+    delBtn.title = '删除';
+    delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+    delBtn.addEventListener('click', () => deleteTokenByKey(tokenKey));
+
+    actionsWrap.appendChild(refreshBtn);
+    actionsWrap.appendChild(editBtn);
+    actionsWrap.appendChild(delBtn);
+    tdActions.appendChild(actionsWrap);
 
     tr.appendChild(tdCheck);
     tr.appendChild(tdToken);
@@ -495,6 +566,89 @@ function renderTable() {
   });
 
   updateSelectionState();
+  renderPagination();
+}
+
+function getTokenTotalPages() {
+  return Math.max(1, Math.ceil(displayTokens.length / pageSize));
+}
+
+function getTokenPageList(current, totalPages) {
+  const pages = [];
+  const delta = 2;
+  const range = [];
+  for (let i = Math.max(1, current - delta); i <= Math.min(totalPages, current + delta); i++) {
+    range.push(i);
+  }
+  if (range.length && range[0] > 1) {
+    pages.push(1);
+    if (range[0] > 2) pages.push('...');
+  }
+  pages.push(...range);
+  if (range.length && range[range.length - 1] < totalPages) {
+    if (range[range.length - 1] < totalPages - 1) pages.push('...');
+    pages.push(totalPages);
+  }
+  return pages;
+}
+
+function renderPagination() {
+  const container = document.getElementById('token-pagination');
+  if (!container) return;
+
+  const total = displayTokens.length;
+  if (total === 0) {
+    container.innerHTML = '';
+    container.classList.add('hidden');
+    return;
+  }
+  container.classList.remove('hidden');
+
+  const totalPages = getTokenTotalPages();
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(currentPage * pageSize, total);
+
+  let html = `<div class="pagination-info">共 ${total} 条 · 第 ${start}-${end} 条</div>`;
+  html += '<div class="pagination-controls">';
+
+  html += `<button class="pagination-btn" ${currentPage <= 1 ? 'disabled' : ''} onclick="goToTokenPage(${currentPage - 1})">上一页</button>`;
+
+  getTokenPageList(currentPage, totalPages).forEach((p) => {
+    if (p === '...') {
+      html += '<span class="pagination-ellipsis">…</span>';
+    } else {
+      html += `<button class="pagination-btn ${p === currentPage ? 'active' : ''}" onclick="goToTokenPage(${p})">${p}</button>`;
+    }
+  });
+
+  html += `<button class="pagination-btn" ${currentPage >= totalPages ? 'disabled' : ''} onclick="goToTokenPage(${currentPage + 1})">下一页</button>`;
+
+  html += `<span class="pagination-size">每页<select onchange="onTokenPageSizeChange(this.value)">`;
+  [10, 20, 50, 100].forEach((s) => {
+    html += `<option value="${s}" ${s === pageSize ? 'selected' : ''}>${s}</option>`;
+  });
+  html += '</select>条</span>';
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function goToTokenPage(page) {
+  const totalPages = getTokenTotalPages();
+  currentPage = Math.min(Math.max(1, page), totalPages);
+  renderTable();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function onTokenPageSizeChange(value) {
+  const newSize = parseInt(value, 10);
+  if (!newSize || newSize <= 0) return;
+  pageSize = newSize;
+  currentPage = 1;
+  renderTable();
 }
 
 // Selection Logic
@@ -631,6 +785,7 @@ async function submitManualAdd() {
   if (!quota || Number.isNaN(quota)) quota = 80;
   const note = noteInput ? noteInput.value.trim().slice(0, 50) : '';
 
+  const snapshot = cloneFlatTokensSnapshot();
   flatTokens.push({
     token: token,
     pool: pool,
@@ -645,7 +800,13 @@ async function submitManualAdd() {
     _selected: false
   });
 
-  await syncToServer();
+  const saved = await syncToServer();
+  if (!saved) {
+    flatTokens = snapshot;
+    applyFilters();
+    renderTable();
+    return;
+  }
   closeAddModal();
   applyFilters();
   loadData();
@@ -776,7 +937,7 @@ async function pollAutoRegisterStatus() {
     });
     if (!res.ok) {
       if (res.status === 401) {
-        logout();
+        handleUnauthorized();
         return;
       }
       if (res.status === 404) {
@@ -927,6 +1088,8 @@ async function saveEdit() {
   const newQuota = parseInt(document.getElementById('edit-quota').value) || 0;
   const newNote = document.getElementById('edit-note').value.trim().slice(0, 50);
 
+  const snapshot = cloneFlatTokensSnapshot();
+
   if (currentEditIndex >= 0) {
     // Updating existing
     const item = flatTokens[currentEditIndex];
@@ -963,7 +1126,13 @@ async function saveEdit() {
     });
   }
 
-  await syncToServer();
+  const saved = await syncToServer();
+  if (!saved) {
+    flatTokens = snapshot;
+    applyFilters();
+    renderTable();
+    return;
+  }
   closeEditModal();
   applyFilters();
   // Reload to ensure consistent state/grouping
@@ -974,9 +1143,17 @@ async function saveEdit() {
 async function deleteToken(index) {
   const ok = await confirmAction('确定要删除此 Token 吗？', { okText: '删除' });
   if (!ok) return;
+  const snapshot = cloneFlatTokensSnapshot();
   flatTokens.splice(index, 1);
   applyFilters();
-  syncToServer().then(loadData);
+  const saved = await syncToServer();
+  if (!saved) {
+    flatTokens = snapshot;
+    applyFilters();
+    renderTable();
+    return;
+  }
+  loadData();
 }
 
 function batchDelete() {
@@ -1114,20 +1291,28 @@ async function submitImport() {
   // Remove duplicates and existing tokens
   const uniqueTokens = [];
   const existingKeys = new Set(flatTokens.map(t => getTokenKey(t.token)));
+  let duplicateCount = 0;
 
   tokens.forEach(token => {
     const key = getTokenKey(token);
     if (!existingKeys.has(key) && !uniqueTokens.some(t => getTokenKey(t) === key)) {
       uniqueTokens.push(token);
+    } else {
+      duplicateCount++;
     }
   });
 
   if (uniqueTokens.length === 0) {
-    showToast('没有找到有效的token或所有token已存在', 'warning');
+    if (tokens.length === 0) {
+      showToast('没有找到有效的token，请检查输入格式', 'warning');
+    } else {
+      showToast(`解析到 ${tokens.length} 个token，但都已存在（${duplicateCount} 个重复）`, 'warning');
+    }
     return;
   }
 
   // Add tokens to flatTokens
+  const snapshot = cloneFlatTokensSnapshot();
   uniqueTokens.forEach(token => {
     flatTokens.push({
       token: token,
@@ -1144,11 +1329,23 @@ async function submitImport() {
     });
   });
 
-  await syncToServer();
+  const saved = await syncToServer();
+  if (!saved) {
+    flatTokens = snapshot;
+    applyFilters();
+    renderTable();
+    return;
+  }
   closeImportModal();
   applyFilters();
   loadData();
-  showToast(`成功导入 ${uniqueTokens.length} 个token`, 'success');
+  const imported = uniqueTokens.length;
+  const skipped = duplicateCount;
+  if (skipped > 0) {
+    showToast(`成功导入 ${imported} 个，跳过 ${skipped} 个重复/已存在 token`, 'info');
+  } else {
+    showToast(`成功导入 ${imported} 个 token`, 'success');
+  }
 }
 
 function readFileContent(file) {
@@ -1530,8 +1727,16 @@ function setupConfirmDialog() {
       closeConfirm(false);
     }
   });
+  dialog.querySelectorAll('[data-close-confirm]').forEach((btn) =>
+    btn.addEventListener('click', () => closeConfirm(false)),
+  );
   if (okBtn) okBtn.addEventListener('click', () => closeConfirm(true));
   if (cancelBtn) cancelBtn.addEventListener('click', () => closeConfirm(false));
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (dialog.classList.contains('is-open')) closeConfirm(false);
+  });
 }
 
 function confirmAction(message, options = {}) {
@@ -1589,16 +1794,6 @@ async function processDeleteQueue() {
   setTimeout(() => {
     processDeleteQueue();
   }, 400);
-}
-
-function escapeHtml(text) {
-  if (!text) return '';
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 

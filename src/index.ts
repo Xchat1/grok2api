@@ -150,18 +150,18 @@ app.get("/admin/keys", (c) => {
   return fetchAsset(c, "/keys/keys.html");
 });
 
-app.get("/chat", (c) => {
+app.get("/admin/skills", (c) => {
   const buildSha = getBuildSha(c.env as Env);
   const v = c.req.query("v") ?? "";
-  if (v !== buildSha) return c.redirect(`/chat?v=${encodeURIComponent(buildSha)}`, 302);
-  return fetchAsset(c, "/chat/chat.html");
+  if (v !== buildSha) return c.redirect(`/admin/skills?v=${encodeURIComponent(buildSha)}`, 302);
+  return fetchAsset(c, "/skills/skills.html");
 });
 
-app.get("/admin/chat", (c) => {
+app.get("/admin/docs", (c) => {
   const buildSha = getBuildSha(c.env as Env);
   const v = c.req.query("v") ?? "";
-  if (v !== buildSha) return c.redirect(`/admin/chat?v=${encodeURIComponent(buildSha)}`, 302);
-  return fetchAsset(c, "/chat/chat_admin.html");
+  if (v !== buildSha) return c.redirect(`/admin/docs?v=${encodeURIComponent(buildSha)}`, 302);
+  return fetchAsset(c, "/docs/docs.html");
 });
 
 app.get("/static/*", (c) => {

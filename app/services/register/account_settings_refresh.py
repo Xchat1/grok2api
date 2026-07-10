@@ -18,36 +18,7 @@ DEFAULT_NSFW_REFRESH_RETRIES = 3
 DEFAULT_IMPERSONATE = "chrome120"
 
 
-def _extract_cookie_value(cookie_str: str, name: str) -> str | None:
-    needle = f"{name}="
-    if needle not in cookie_str:
-        return None
-    for part in cookie_str.split(";"):
-        part = part.strip()
-        if part.startswith(needle):
-            value = part[len(needle):].strip()
-            return value or None
-    return None
-
-
-def parse_sso_pair(raw_token: str) -> tuple[str, str]:
-    raw = str(raw_token or "").strip()
-    if not raw:
-        return "", ""
-
-    if ";" in raw:
-        sso = _extract_cookie_value(raw, "sso") or ""
-        sso_rw = _extract_cookie_value(raw, "sso-rw") or sso
-        return sso.strip(), sso_rw.strip()
-
-    sso = raw[4:].strip() if raw.startswith("sso=") else raw
-    sso_rw = sso
-    return sso, sso_rw
-
-
-def normalize_sso_token(raw_token: str) -> str:
-    sso, _ = parse_sso_pair(raw_token)
-    return sso
+from app.services.grok.cookies import parse_sso_pair, normalize_sso_token
 
 
 def _coerce_concurrency(value: Any, default: int = DEFAULT_NSFW_REFRESH_CONCURRENCY) -> int:
@@ -187,6 +158,9 @@ class AccountSettingsRefreshService:
 
                     last_step = step or "unknown"
                     last_error = error or "unknown error"
+
+                    if not ok and attempt < max_attempts:
+                        await asyncio.sleep(attempt * 1.0)
 
                 reason = (
                     f"account_settings_refresh_failed step={last_step} "

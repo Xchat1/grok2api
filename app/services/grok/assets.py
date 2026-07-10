@@ -23,12 +23,15 @@ from curl_cffi.requests import AsyncSession
 
 from app.core.logger import logger
 from app.core.config import get_config
+from app.core.constants import BROWSER_IMPERSONATE
+from app.core.concurrency import get_dynamic_semaphore
 from app.core.exceptions import (
     AppException, 
     UpstreamException, 
     ValidationException
 )
 from app.services.grok.statsig import StatsigService
+from app.services.grok.cookies import build_grok_cookie
 
 
 # ==================== 常量 ====================
@@ -40,27 +43,11 @@ DOWNLOAD_API = "https://assets.grok.com"
 LOCK_DIR = Path(__file__).parent.parent.parent.parent / "data" / ".locks"
 
 TIMEOUT = 120
-BROWSER = "chrome136"
 DEFAULT_MIME = "application/octet-stream"
 
 # 并发控制
-DEFAULT_MAX_CONCURRENT = 25
 DEFAULT_DELETE_BATCH_SIZE = 10
-_ASSETS_SEMAPHORE = asyncio.Semaphore(DEFAULT_MAX_CONCURRENT)
-_ASSETS_SEM_VALUE = DEFAULT_MAX_CONCURRENT
 
-def _get_assets_semaphore() -> asyncio.Semaphore:
-    global _ASSETS_SEMAPHORE, _ASSETS_SEM_VALUE
-    value = get_config("performance.assets_max_concurrent", DEFAULT_MAX_CONCURRENT)
-    try:
-        value = int(value)
-    except Exception:
-        value = DEFAULT_MAX_CONCURRENT
-    value = max(1, value)
-    if value != _ASSETS_SEM_VALUE:
-        _ASSETS_SEM_VALUE = value
-        _ASSETS_SEMAPHORE = asyncio.Semaphore(value)
-    return _ASSETS_SEMAPHORE
 
 def _get_delete_batch_size() -> int:
     value = get_config("performance.assets_delete_batch_size", DEFAULT_DELETE_BATCH_SIZE)
@@ -181,9 +168,7 @@ class BaseService:
         headers["x-xai-request-id"] = str(uuid.uuid4())
         
         # Cookie
-        token = token[4:] if token.startswith("sso=") else token
-        cf = get_config("grok.cf_clearance", "")
-        headers["Cookie"] = f"sso={token};cf_clearance={cf}" if cf else f"sso={token}"
+        headers["Cookie"] = build_grok_cookie(token)
         
         return headers
     
@@ -204,9 +189,7 @@ class BaseService:
         }
         
         # Cookie
-        token = token[4:] if token.startswith("sso=") else token
-        cf = get_config("grok.cf_clearance", "")
-        headers["Cookie"] = f"sso={token};cf_clearance={cf}" if cf else f"sso={token}"
+        headers["Cookie"] = build_grok_cookie(token)
         
         return headers
     
@@ -228,7 +211,7 @@ class BaseService:
         try:
             result = urlparse(input_str)
             return all([result.scheme, result.netloc]) and result.scheme in ['http', 'https']
-        except:
+        except (ValueError, AttributeError, TypeError):
             return False
     
     @staticmethod
@@ -299,7 +282,7 @@ class UploadService(BaseService):
             ValidationException: 输入无效
             UpstreamException: 上传失败
         """
-        async with _get_assets_semaphore():
+        async with get_dynamic_semaphore("assets", 25):
             try:
                 # 处理输入
                 if self.is_url(file_input):
@@ -324,7 +307,7 @@ class UploadService(BaseService):
                     UPLOAD_API,
                     headers=headers,
                     json=payload,
-                    impersonate=BROWSER,
+                    impersonate=BROWSER_IMPERSONATE,
                     timeout=self.timeout,
                     proxies=self._proxies(),
                 )
@@ -385,7 +368,7 @@ class ListService(BaseService):
                     LIST_API,
                     headers=headers,
                     params=params,
-                    impersonate=BROWSER,
+                    impersonate=BROWSER_IMPERSONATE,
                     timeout=self.timeout,
                     proxies=self._proxies(),
                 )
@@ -454,7 +437,7 @@ class DeleteService(BaseService):
         Raises:
             UpstreamException: 删除失败
         """
-        async with _get_assets_semaphore():
+        async with get_dynamic_semaphore("assets", 25):
             try:
                 headers = self._headers(token, referer="https://grok.com/files")
                 url = f"{DELETE_API}/{asset_id}"
@@ -463,7 +446,7 @@ class DeleteService(BaseService):
                 response = await session.delete(
                     url,
                     headers=headers,
-                    impersonate=BROWSER,
+                    impersonate=BROWSER_IMPERSONATE,
                     timeout=self.timeout,
                     proxies=self._proxies(),
                 )
@@ -508,7 +491,8 @@ class DeleteService(BaseService):
                     if asset_id:
                         try:
                             return await self.delete(token, asset_id)
-                        except:
+                        except Exception as e:
+                            logger.warning(f"Failed to delete asset {asset_id}: {e}")
                             return False
                     return False
 
@@ -574,7 +558,7 @@ class DownloadService(BaseService):
         Raises:
             UpstreamException: 下载失败
         """
-        async with _get_assets_semaphore():
+        async with get_dynamic_semaphore("assets", 25):
             try:
                 # Be forgiving: callers may pass absolute URLs.
                 if isinstance(file_path, str) and file_path.startswith("http"):
@@ -619,7 +603,7 @@ class DownloadService(BaseService):
                         proxies=self._proxies(),
                         timeout=self.timeout,
                         allow_redirects=True,
-                        impersonate=BROWSER,
+                        impersonate=BROWSER_IMPERSONATE,
                         stream=True,
                     )
                     
@@ -657,10 +641,8 @@ class DownloadService(BaseService):
                     mime_type = response.headers.get('content-type', DEFAULT_MIME).split(';')[0]
                     
                     logger.info(f"Download success: {file_path}")
-                    
-                    # 检查缓存限制
-                    asyncio.create_task(self.check_limit())
-                    
+
+                    # 缓存限额清理已改为周期性定时任务（见 start_cache_cleanup），不再每次请求触发。
                     return cache_path, mime_type
             
             except Exception as e:
@@ -710,8 +692,8 @@ class DownloadService(BaseService):
         if not cache_dir.exists():
             return {"count": 0, "size_mb": 0.0}
         
-        # 统计目录下所有文件（有些资产路径可能不带标准后缀名）
-        files = [f for f in cache_dir.glob("*") if f.is_file()]
+        # 递归统计所有文件（资产按上游路径嵌套存储，必须用 rglob 才能计入子目录文件）
+        files = [f for f in cache_dir.rglob("*") if f.is_file()]
         total_size = sum(f.stat().st_size for f in files)
         
         return {
@@ -820,18 +802,20 @@ class DownloadService(BaseService):
 
                 limit_mb = get_config("cache.limit_mb", 1024)
 
-                # 统计总大小
+                # 统计总大小（递归，资产按上游路径嵌套存储）
                 total_size = 0
                 all_files = []
-                
+
                 for d in [self.image_dir, self.video_dir]:
                     if d.exists():
-                        for f in d.glob("*"):
+                        for f in d.rglob("*"):
+                            if not f.is_file():
+                                continue
                             try:
                                 stat = f.stat()
                                 total_size += stat.st_size
                                 all_files.append((f, stat.st_mtime, stat.st_size))
-                            except:
+                            except OSError:
                                 pass
                 
                 current_mb = total_size / 1024 / 1024
@@ -881,10 +865,66 @@ class DownloadService(BaseService):
         return f"{app_url.rstrip('/')}/v1/files{file_path}"
 
 
+# ==================== 周期性缓存清理（H-P2） ====================
+# 由应用生命周期（main.py lifespan）启动，按固定间隔调用 check_limit()，
+# 不再依赖每次请求触发，避免请求路径上的阻塞式磁盘遍历。
+
+_cache_cleanup_task: Optional[asyncio.Task] = None
+_cache_cleanup_stop: Optional[asyncio.Event] = None
+
+
+async def _cache_cleanup_loop(interval_sec: int) -> None:
+    """按固定间隔执行一次缓存限额清理。"""
+    while True:
+        if _cache_cleanup_stop and _cache_cleanup_stop.is_set():
+            break
+        try:
+            await asyncio.sleep(interval_sec)
+        except asyncio.CancelledError:
+            break
+        if _cache_cleanup_stop and _cache_cleanup_stop.is_set():
+            break
+        try:
+            svc = DownloadService()
+            await svc.check_limit()
+        except Exception as e:  # 单次清理失败不应终止定时循环
+            logger.warning(f"Periodic cache cleanup error: {e}")
+
+
+def start_cache_cleanup(interval_sec: Optional[int] = None) -> None:
+    """启动周期性缓存清理后台任务（幂等）。"""
+    global _cache_cleanup_task, _cache_cleanup_stop
+
+    if _cache_cleanup_task is not None and not _cache_cleanup_task.done():
+        return
+
+    if interval_sec is None:
+        interval_sec = int(get_config("cache.cleanup_interval_sec", 300) or 300)
+    interval_sec = max(30, int(interval_sec))
+
+    _cache_cleanup_stop = asyncio.Event()
+    _cache_cleanup_task = asyncio.ensure_future(_cache_cleanup_loop(interval_sec))
+    logger.info(f"Scheduled periodic cache cleanup every {interval_sec}s")
+
+
+def stop_cache_cleanup() -> None:
+    """停止周期性缓存清理后台任务。"""
+    global _cache_cleanup_task, _cache_cleanup_stop
+
+    if _cache_cleanup_stop is not None:
+        _cache_cleanup_stop.set()
+    task = _cache_cleanup_task
+    _cache_cleanup_task = None
+    if task is not None and not task.done():
+        task.cancel()
+
+
 __all__ = [
     "BaseService",
     "UploadService",
     "ListService",
     "DeleteService",
     "DownloadService",
+    "start_cache_cleanup",
+    "stop_cache_cleanup",
 ]
