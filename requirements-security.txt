@@ -1,0 +1,3 @@
+# Security bootstrap packages; business dependency versions are unchanged.
+certifi==2026.10.19
+pip==26.2.2

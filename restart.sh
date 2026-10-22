@@ -11,4 +11,4 @@ pkill -f "main.py" 2>/dev/null || true
 sleep 1
 
 echo "启动服务 (端口 $SERVER_PORT，热加载 $SERVER_RELOAD)..."
-exec uv run main.py
+exec python3 security/security_ca.py --exec uv run main.py
