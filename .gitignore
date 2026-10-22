@@ -85,3 +85,7 @@ work.md
 
 # Local tooling
 .ace-tool/
+
+# Project-local generated CA profiles (public roots remain versioned).
+.security-ca-cache/
+!security/ca/ca-certificates.crt
